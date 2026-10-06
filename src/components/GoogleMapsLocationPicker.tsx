@@ -74,16 +74,17 @@ interface PlaceSearchBoxProps {
   onPlaceSelected: (place: google.maps.places.PlaceResult) => void;
   onManualSearch: (query: string) => void;
   countyHint: string;
+  isBillingError?: boolean;
 }
 
-const PlaceSearchBox: React.FC<PlaceSearchBoxProps> = ({ onPlaceSelected, onManualSearch, countyHint }) => {
+const PlaceSearchBox: React.FC<PlaceSearchBoxProps> = ({ onPlaceSelected, onManualSearch, countyHint, isBillingError = false }) => {
   const [query, setQuery] = useState('');
   const placesLib = useMapsLibrary('places');
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   useEffect(() => {
-    if (!placesLib || !inputRef.current) return;
+    if (!placesLib || !inputRef.current || isBillingError) return;
 
     try {
       const autocomplete = new placesLib.Autocomplete(inputRef.current, {
@@ -106,7 +107,7 @@ const PlaceSearchBox: React.FC<PlaceSearchBoxProps> = ({ onPlaceSelected, onManu
     } catch {
       // Caught in case of Places API billing error
     }
-  }, [placesLib, onPlaceSelected]);
+  }, [placesLib, onPlaceSelected, isBillingError]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,8 +210,29 @@ export const GoogleMapsLocationPicker: React.FC<GoogleMapsLocationPickerProps> =
     (window as any).gm_authFailure = handleAuthFailure;
     window.addEventListener('error', handleWindowError);
 
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+      try {
+        const fullText = args
+          .map((a) => (typeof a === 'object' && a !== null ? (a.message || JSON.stringify(a)) : String(a)))
+          .join(' ');
+        if (
+          fullText.includes('BillingNotEnabledMapError') ||
+          fullText.includes('billing/enable') ||
+          fullText.includes('Places API error')
+        ) {
+          setIsBillingError(true);
+          setUseTileMap(true);
+        }
+      } catch {
+        // Safe console guard
+      }
+      originalConsoleError.apply(console, args);
+    };
+
     return () => {
       window.removeEventListener('error', handleWindowError);
+      console.error = originalConsoleError;
     };
   }, []);
 
@@ -608,6 +630,7 @@ export const GoogleMapsLocationPicker: React.FC<GoogleMapsLocationPickerProps> =
             onPlaceSelected={handlePlaceSelect} 
             onManualSearch={handleManualSearch} 
             countyHint={normalizedCounty} 
+            isBillingError={isBillingError}
           />
         </div>
 

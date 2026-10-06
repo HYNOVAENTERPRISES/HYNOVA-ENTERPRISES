@@ -288,8 +288,28 @@ export const AdminLocationMapTab: React.FC = () => {
     (window as any).gm_authFailure = handleAuthFailure;
     window.addEventListener('error', handleWindowError);
 
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+      try {
+        const fullText = args
+          .map((a) => (typeof a === 'object' && a !== null ? (a.message || JSON.stringify(a)) : String(a)))
+          .join(' ');
+        if (
+          fullText.includes('BillingNotEnabledMapError') ||
+          fullText.includes('billing/enable') ||
+          fullText.includes('Places API error')
+        ) {
+          setIsBillingError(true);
+        }
+      } catch {
+        // Safe console guard
+      }
+      originalConsoleError.apply(console, args);
+    };
+
     return () => {
       window.removeEventListener('error', handleWindowError);
+      console.error = originalConsoleError;
     };
   }, []);
 
