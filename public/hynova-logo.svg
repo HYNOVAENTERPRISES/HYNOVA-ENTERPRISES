@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <!-- Definitions for clean rendering -->
+  <defs>
+    <style>
+      .hynova-text-brand {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 800;
+        font-size: 75px;
+        fill: #C01E25;
+        letter-spacing: 0.035em;
+      }
+      .hynova-text-tagline {
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 600;
+        font-size: 38px;
+        fill: #231F20;
+        letter-spacing: 0.28em;
+      }
+    </style>
+  </defs>
+
+  <g id="hynova-monogram">
+    <!-- Left slanted charcoal/black bar -->
+    <polygon points="160,227 326,227 451,490 305,490" fill="#231F20" />
+
+    <!-- Red stylized Hynova dynamic wing and loop -->
+    <path fill-rule="evenodd" fill="#C01E25" d="
+      M 418,227
+      L 584,227
+      L 556,285
+      C 544,310 535,335 528,362
+      C 560,363 605,365 655,372
+      C 745,385 830,420 845,465
+      C 858,505 815,532 755,535
+      C 660,540 575,505 520,430
+      L 508,490
+      L 370,490
+      L 415,395
+      L 252,395
+      L 242,400
+      L 212,400
+      L 225,392
+      L 200,392
+      L 138,368
+      L 248,365
+      L 426,365
+      L 458,295
+      Z
+      M 588,415
+      C 645,410 735,420 760,450
+      C 775,470 755,490 705,495
+      C 645,500 580,470 548,435
+      C 560,425 574,418 588,415
+      Z
+    " />
+  </g>
+
+  <!-- Brand Typography -->
+  <text x="500" y="635" text-anchor="middle" class="hynova-text-brand">HYNOVA ENTERPRISES</text>
+  <text x="500" y="755" text-anchor="middle" class="hynova-text-tagline">LIMITLESS ACCESS</text>
+</svg>

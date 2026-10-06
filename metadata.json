@@ -1,0 +1,7 @@
+{
+  "name": "HYNOVA Enterprises",
+  "description": "Kenya's AI Powered Technology Fulfillment Network connecting customers, AI recommendations, certified technicians, suppliers, and infrastructure solutions across all 47 counties.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
