@@ -46,9 +46,9 @@ export const HowItWorksView: React.FC<HowItWorksViewProps> = ({
     },
     {
       step: 2,
-      title: 'Customer Uses HYNOVA AI Advisor',
+      title: 'Use Our Solution Advisor',
       phase: 'AI Sizing',
-      desc: 'Customer inputs budget, location, and property goals. The AI checks verified pricing data, component compatibility, and margin protection rules.',
+      desc: 'Input your budget, location, and property goals. Our system checks verified pricing data, component compatibility, and margin protection rules.',
       icon: Sparkles,
       badge: '60 Seconds',
     },
@@ -148,7 +148,7 @@ export const HowItWorksView: React.FC<HowItWorksViewProps> = ({
             The 12-Step Customer Journey
           </h1>
           <p className="text-base sm:text-lg text-[#5C4D50] leading-relaxed">
-            Customers purchase outcomes. HYNOVA coordinates delivery. From preliminary AI sizing to mandatory site surveys and certified commissioning.
+            You purchase outcomes. We coordinate delivery. From preliminary AI sizing to mandatory site surveys and certified commissioning.
           </p>
         </div>
 
@@ -245,7 +245,7 @@ export const HowItWorksView: React.FC<HowItWorksViewProps> = ({
                   </div>
                 </div>
                 <p className="text-[10px] text-[#8F7B7F] italic pt-1">
-                  * Site survey fees are non-refundable. Fees may be credited toward project cost at HYNOVA's discretion.
+                  * Site survey fees are non-refundable. Fees may be credited toward project cost at our discretion.
                 </p>
               </div>
             </div>
@@ -327,7 +327,7 @@ export const HowItWorksView: React.FC<HowItWorksViewProps> = ({
             Ready to Begin Step 1?
           </h3>
           <p className="text-xs sm:text-sm text-[#5C4D50] max-w-xl mx-auto">
-            Use the HYNOVA AI Advisor to calculate preliminary solution options, or schedule a certified physical site survey directly.
+            Use our Solution Advisor to calculate preliminary solution options, or schedule a certified physical site survey directly with our team.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button

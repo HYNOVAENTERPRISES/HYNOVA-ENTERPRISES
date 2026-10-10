@@ -63,7 +63,7 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
       title: 'Receive Tailored Recommendation',
       tagline: 'Turnkey Bill of Materials (BOM) with 2026 Kenyan distributor pricing',
       icon: Sparkles,
-      summary: 'HYNOVA analyzes your parameters and generates a transparent itemized preliminary Bill of Materials (BOM).',
+      summary: 'We analyze your parameters and generate a transparent itemized preliminary Bill of Materials (BOM).',
       details: 'Our sizing engine estimates solar yields, equipment compatibility, inverter sizing, and compares benchmark distributor pricing for a clear preliminary Bill of Materials.',
       kenyanContext: 'Designed to align with recognized EPRA electrical safety and NCA construction installation codes.',
       detailedProcess: [
@@ -102,12 +102,12 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
       ],
       kenyanSafeguards: [
         'Buyer funds NEVER handed directly to contractors before commissioning',
-        'Full dispute mediation by HYNOVA technology compliance engineers',
+        'Full dispute mediation by our technology compliance engineers',
         'Milestone-locked payments released strictly upon your written or phone authorization',
       ],
       turnaroundTime: 'Same Day Commitment',
       deliverables: [
-        'Official HYNOVA Escrow Contract & Milestone Schedule',
+        'Our Official Escrow Agreement & Milestone Schedule',
         'M-Pesa Escrow Receipt with Safaricom Transaction ID',
         'Assigned Lead Engineer & Certified Technician Profiles',
       ],
@@ -131,7 +131,7 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
       ],
       kenyanSafeguards: [
         '100% EPRA / NCA certified lead installation technicians',
-        '1-Year workmanship warranty seal backed by HYNOVA platform guarantee',
+        '1-Year workmanship warranty seal backed by our platform guarantee',
         'Genuine distributor serial verification preventing counterfeit hardware',
       ],
       turnaroundTime: '24 – 48 Hours Across Kenya',
@@ -159,7 +159,7 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
             Section 3 • Effortless Process
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#1E1B1C] mt-3 mb-4 tracking-tight">
-            How HYNOVA Works
+            How We Work
           </h2>
           <p className="text-[#5C4D50] text-base sm:text-lg">
             A simple 4-step workflow connecting your budget to certified technology delivery anywhere in Kenya. Click any step to inspect the full operational breakdown.
@@ -264,7 +264,7 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
               className="bg-[#C01E25] hover:bg-[#a1181e] text-[#FFFFFF] text-xs sm:text-sm font-bold px-6 py-3.5 rounded-xl shadow-md shadow-[#C01E25]/20 flex items-center gap-2 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Try HYNOVA Workflow</span>
+              <span>Try Our Sizing Workflow</span>
             </button>
           </div>
         </div>

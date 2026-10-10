@@ -70,7 +70,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       text: 'Asante Dennis. Please ensure the DC surge arrestor is installed beside the main DB box.',
     },
     {
-      sender: 'HYNOVA Project Operations',
+      sender: 'Our Project Operations Team',
       role: 'ops',
       time: '10:25 AM',
       text: 'Milestone 4 (Roof Mounting) is in progress. Once Dennis uploads the commissioning test certificate, you will receive a prompt to inspect and authorize escrow release.',
@@ -116,12 +116,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
       distanceFromHubKm: 14.2,
       travelZone: 'Zone A (0–15 KM)',
       isDifferentInstallationLocation: false,
-      technician: {
-        name: 'Dennis Koech',
-        phone: '+254 722 491 802',
-        rank: 'EPRA Level 3 Certified Specialist',
-        rating: 4.95,
-      },
+      technician: null,
       escrowLockedKES: 340000,
       estimatedHandover: 'Tomorrow, 3:00 PM',
       milestones: [
@@ -465,33 +460,45 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                   )}
                 </div>
 
-                {/* Assigned Technician Card */}
+                {/* Field Technician Status Card */}
                 <div className="p-4 rounded-2xl bg-[#EEECEC]/30 border border-[#EEECEC] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#C01E25] text-white flex items-center justify-center font-black text-sm">
-                      DK
+                    <div className="w-10 h-10 rounded-xl bg-[#8F7B7F]/20 text-[#5C4D50] flex items-center justify-center font-black text-sm">
+                      <Wrench className="w-5 h-5 text-[#C01E25]" />
                     </div>
                     <div>
-                      <span className="text-xs font-bold text-[#1E1B1C] block">{proj.technician.name}</span>
-                      <span className="text-[11px] text-[#5C4D50]">{proj.technician.rank} • Rating: ⭐ {proj.technician.rating}</span>
+                      <span className="text-xs font-bold text-[#1E1B1C] block">
+                        {proj.technician ? (proj.technician as any).name : 'Awaiting technician assignment'}
+                      </span>
+                      <span className="text-[11px] text-[#5C4D50]">
+                        {proj.technician 
+                          ? `${(proj.technician as any).rank} • Rating: ⭐ ${(proj.technician as any).rating}` 
+                          : 'Your project can proceed to the next stage once payment is verified and an eligible technician from our team is available for assignment.'}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setActiveTab('messages')}
-                      className="px-3 py-1.5 rounded-xl bg-white border border-[#EEECEC] hover:bg-[#EEECEC] text-xs font-bold text-[#1E1B1C] flex items-center gap-1 cursor-pointer"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      <span>Message Technician</span>
-                    </button>
-                    <a
-                      href={`tel:${proj.technician.phone}`}
-                      className="px-3 py-1.5 rounded-xl bg-[#25D366] text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      <span>Call Dennis</span>
-                    </a>
-                  </div>
+                  {proj.technician ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setActiveTab('messages')}
+                        className="px-3 py-1.5 rounded-xl bg-white border border-[#EEECEC] hover:bg-[#EEECEC] text-xs font-bold text-[#1E1B1C] flex items-center gap-1 cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Message Technician</span>
+                      </button>
+                      <a
+                        href={`tel:${(proj.technician as any).phone}`}
+                        className="px-3 py-1.5 rounded-xl bg-[#25D366] text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Call Technician</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <span className="text-xs font-semibold text-[#8F7B7F] bg-white px-3 py-1.5 rounded-xl border border-[#EEECEC] shrink-0">
+                      Assignment Pending
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -625,7 +632,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EEECEC] shadow-xs space-y-4">
               <h3 className="text-lg font-extrabold text-[#1E1B1C]">Customer Care & Warranty Support</h3>
               <p className="text-xs text-[#5C4D50]">
-                Have a question about your installation, warranty, or technician visit? Open an inquiry with HYNOVA operations.
+                Have a question about your installation, warranty, or technician visit? Open an inquiry with our operations team.
               </p>
 
               {ticketCreated ? (
@@ -679,7 +686,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
             <div className="p-4 border-b border-[#EEECEC] bg-[#EEECEC]/30 flex items-center justify-between">
               <div>
                 <h4 className="font-extrabold text-sm text-[#1E1B1C]">Project Coordination Channel</h4>
-                <p className="text-[11px] text-[#5C4D50]">Direct thread with Dennis Koech & HYNOVA Ops</p>
+                <p className="text-[11px] text-[#5C4D50]">Direct thread with our Technical Operations Desk</p>
               </div>
               <span className="text-[10px] font-bold text-[#C01E25] bg-[#F0C9CB] px-2 py-0.5 rounded">
                 Active Job #PRJ-041

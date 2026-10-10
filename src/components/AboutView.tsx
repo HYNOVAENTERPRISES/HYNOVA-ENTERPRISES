@@ -67,7 +67,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate }) => {
             <span className="text-[#C01E25]">Technology Fulfillment Network</span>
           </h1>
           <p className="text-base sm:text-lg text-[#5C4D50] leading-relaxed max-w-2xl mx-auto">
-            HYNOVA is not just a CCTV, solar, or networking company. We connect customers, AI recommendations, certified technicians, suppliers, and infrastructure solutions into one seamless nationwide ecosystem.
+            We are not just a CCTV, solar, or networking company. We connect customers, AI recommendations, certified technicians, suppliers, and infrastructure solutions into one seamless nationwide ecosystem.
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate }) => {
               System Architecture
             </span>
             <h3 className="text-2xl sm:text-3xl font-extrabold text-[#1E1B1C] mt-2">
-              The HYNOVA Flywheel
+              Our Operating Flywheel
             </h3>
             <p className="text-xs sm:text-sm text-[#5C4D50] mt-1">
               How our closed-loop marketplace ensures reliability and affordability for all Kenyans.
@@ -121,10 +121,10 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {[
               { step: '01', title: 'Goals Input', desc: 'Customers describe their goals and budget in plain English or Swahili.' },
-              { step: '02', title: 'Smart Sizing', desc: 'HYNOVA sizes optimal hardware BOM and verified specs.' },
+              { step: '02', title: 'Smart Sizing', desc: 'We size the optimal hardware BOM and verified specs.' },
               { step: '03', title: 'Direct Supply', desc: 'Tier-1 bonded suppliers provide genuine equipment at wholesale.' },
               { step: '04', title: 'Certified Delivery', desc: 'Vetted, licensed technicians execute site installation & testing.' },
-              { step: '05', title: 'Escrow Guarantee', desc: 'HYNOVA manages ecosystem quality, warranty, and escrow payouts.' },
+              { step: '05', title: 'Escrow Guarantee', desc: 'We manage ecosystem quality, warranty, and escrow payouts.' },
             ].map((f, i) => (
               <div key={i} className="p-4 rounded-2xl bg-[#EEECEC]/30 border border-[#EEECEC] text-left">
                 <span className="text-xs font-mono font-black text-[#C01E25]">{f.step}</span>
@@ -175,7 +175,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onNavigate }) => {
               "Earn trust through transparency. Underpromise, deliver, and grow with integrity."
             </p>
             <p className="text-xs sm:text-sm text-[#5C4D50] leading-relaxed">
-              HYNOVA is committed to honesty, transparency, and evidence-based communication. We strictly refrain from generating placeholder statistics, fictional customer counts, or unverified claims.
+              We are committed to honesty, transparency, and evidence-based communication. We strictly refrain from generating placeholder statistics, fictional customer counts, or unverified claims.
             </p>
           </div>
 

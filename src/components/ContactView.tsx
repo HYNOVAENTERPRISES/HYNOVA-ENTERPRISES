@@ -61,7 +61,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ onNavigate, onOpenAI }
     },
     {
       q: 'Do you provide warranties on equipment and installation?',
-      a: 'All hardware comes with manufacturer-backed warranties (e.g. 5–10 years for Tier-1 solar inverters and lithium batteries, 2–3 years for Hikvision AI cameras). HYNOVA provides an additional 1-year workmanship warranty on certified installations.',
+      a: 'All hardware comes with manufacturer-backed warranties (e.g. 5–10 years for Tier-1 solar inverters and lithium batteries, 2–3 years for Hikvision AI cameras). We provide an additional 1-year workmanship warranty on certified installations.',
     },
   ];
 
@@ -76,7 +76,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ onNavigate, onOpenAI }
             <span>NATIONWIDE TECHNICAL ADVISORY</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-[#1E1B1C] tracking-tight mb-4">
-            Contact HYNOVA
+            Contact Us
           </h1>
           <p className="text-base sm:text-lg text-[#5C4D50] leading-relaxed">
             Have a project in mind or need expert sizing advice? Our certified technology advisors are ready to assist you across all 47 counties.
@@ -178,7 +178,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ onNavigate, onOpenAI }
                 <CheckCircle2 className="w-12 h-12 text-[#C01E25] mx-auto" />
                 <h3 className="text-xl font-bold text-[#1E1B1C]">Inquiry Received!</h3>
                 <p className="text-sm text-[#5C4D50] max-w-md mx-auto">
-                  Asante sana, <strong>{fullName}</strong>. A HYNOVA technical coordinator for <strong>{county}</strong> will reach you at <strong>{phone}</strong> within 15–30 minutes.
+                  Asante sana, <strong>{fullName}</strong>. Our technical coordinator for <strong>{county}</strong> will reach you at <strong>{phone}</strong> within 15–30 minutes.
                 </p>
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <button
@@ -329,7 +329,7 @@ export const ContactView: React.FC<ContactViewProps> = ({ onNavigate, onOpenAI }
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-[#1E1B1C]">The HYNOVA Trust Guarantee</h3>
-                  <p className="text-xs text-[#5C4D50]">Why property owners choose HYNOVA</p>
+                  <p className="text-xs text-[#5C4D50]">Why property owners choose us</p>
                 </div>
               </div>
 

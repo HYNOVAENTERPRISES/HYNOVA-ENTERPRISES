@@ -44,7 +44,7 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onNavigate }) => {
             Realistic Phased Growth Plan
           </h1>
           <p className="text-base text-[#5C4D50] mt-2 leading-relaxed">
-            HYNOVA Enterprises is architected for disciplined execution. We prioritize operational excellence in core infrastructure domains before expanding into secondary smart verticals.
+            We are architected for disciplined execution. We prioritize operational excellence in core infrastructure domains before expanding into secondary smart verticals.
           </p>
         </div>
 
@@ -53,7 +53,7 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-3 mb-2">
             <ShieldCheck className="w-6 h-6 text-[#C01E25]" />
             <h2 className="text-lg sm:text-xl font-black text-[#1E1B1C]">
-              HYNOVA Trust Principle: Zero Fabrication
+              Our Trust Principle: Zero Fabrication
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-[#5C4D50] leading-relaxed">
@@ -173,7 +173,7 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ onNavigate }) => {
             Engineered to Support 100k+ Customers & 50k+ Technicians
           </h3>
           <p className="text-xs sm:text-sm text-[#5C4D50] max-w-3xl mx-auto leading-relaxed">
-            The HYNOVA multi-tenant cloud architecture is provisioned with horizontal container auto-scaling, regional read replicas, and partitioned Redis caches to comfortably support 100,000 customers, 50,000 verified technicians, 10,000 suppliers, and millions of instant AI recommendations across all 47 Kenyan counties and future Pan-African corridors.
+            Our multi-tenant cloud architecture is provisioned with horizontal container auto-scaling, regional read replicas, and partitioned Redis caches to comfortably support 100,000 customers, 50,000 verified technicians, 10,000 suppliers, and millions of instant AI recommendations across all 47 Kenyan counties and future Pan-African corridors.
           </p>
 
           <div className="pt-2 flex flex-wrap justify-center gap-3">

@@ -20,6 +20,8 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { AppView, UserRole } from '../types';
+import { googleSignIn } from '../services/authService';
+import { googleSheetsOps } from '../services/googleSheetsService';
 
 interface PortalLoginModalProps {
   isOpen: boolean;
@@ -88,13 +90,24 @@ export const PortalLoginModal: React.FC<PortalLoginModalProps> = ({
   if (!isOpen) return null;
 
   // Handle Customer Google 1-Click Login / Register
-  const handleGoogleAuth = () => {
+  const handleGoogleAuth = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const res = await googleSignIn();
+      if (res) {
+        // Live sync with HYNOVA OPS spreadsheet using the authenticated OAuth token
+        await googleSheetsOps.syncWithGoogleSheets(res.accessToken, res.user.email || undefined);
+        onSelectPortal('customer-portal', 'customer');
+        onClose();
+      }
+    } catch (err) {
+      console.error('Google Workspace sign-in error:', err);
+      // Fallback to customer portal
       onSelectPortal('customer-portal', 'customer');
       onClose();
-    }, 600);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle Customer Phone OTP Send

@@ -126,8 +126,8 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
     { type: 'Property', label: 'Property', icon: Building2 },
   ];
 
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setIsGenerating(true);
     toggleMobileExpanded(true);
 
@@ -357,7 +357,7 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
         {/* The 4-Question Container */}
         {!recommendation ? (
           <div className={isMobileExpanded ? 'block' : 'hidden sm:block'}>
-            <form onSubmit={handleGenerate} className="bg-[#FFFFFF] border border-[#DB7D81]/40 rounded-3xl shadow-xl shadow-[#C01E25]/5 p-6 sm:p-10 space-y-8 animate-in fade-in-50">
+            <div className="bg-[#FFFFFF] border border-[#DB7D81]/40 rounded-3xl shadow-xl shadow-[#C01E25]/5 p-6 sm:p-10 space-y-8 animate-in fade-in-50">
               
               {/* Mobile Collapse Header */}
               <div className="sm:hidden flex items-center justify-between pb-3 border-b border-[#EEECEC]">
@@ -432,8 +432,8 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
                 initialCounty={location}
                 requiredSpecialty={needCategory}
                 showRecipientToggle={true}
-                title="Pin Installation Location on Google Map"
-                subtitle="Step 1: Select your county & sub-county. Step 2: Drop your exact rooftop or gate pin."
+                title="Installation location"
+                subtitle="Tell us where you need the installation, or share your location with us on WhatsApp so we can understand your project requirements."
                 onLocationChange={(loc) => {
                   setLocationRecord(loc);
                   setLocation(loc.county.replace(/County/i, '').trim());
@@ -509,7 +509,8 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
             {/* SUBMIT BUTTON */}
             <div className="pt-4">
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleGenerate()}
                 disabled={isGenerating}
                 className="w-full py-4 rounded-2xl bg-[#C01E25] hover:bg-[#a1181e] text-white font-black text-base shadow-lg shadow-[#C01E25]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer min-h-[52px]"
               >
@@ -543,7 +544,7 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
                 <span>Collapse Sizing Tool</span>
               </button>
             </div>
-          </form>
+          </div>
         </div>
         ) : (
           /* GENERATED RECOMMENDATION RESULT VIEW */
@@ -723,9 +724,13 @@ export const EmbeddedAIWidget: React.FC<EmbeddedAIWidgetProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                       <div>
-                        <span className="text-[10px] text-[#8F7B7F] block uppercase font-bold">Matched Technician</span>
-                        <span className="font-extrabold text-[#1E1B1C] block">{logistics.matchedTechnician.name}</span>
-                        <span className="text-[10px] text-[#5C4D50]">{logistics.matchedTechnician.rank}</span>
+                        <span className="text-[10px] text-[#8F7B7F] block uppercase font-bold">Field Technician Status</span>
+                        <span className="font-extrabold text-[#1E1B1C] block">
+                          {logistics.matchedTechnician ? logistics.matchedTechnician.name : 'Awaiting Assignment'}
+                        </span>
+                        <span className="text-[10px] text-[#5C4D50]">
+                          {logistics.matchedTechnician ? logistics.matchedTechnician.rank : 'Certified Pool'}
+                        </span>
                       </div>
                       <div>
                         <span className="text-[10px] text-[#8F7B7F] block uppercase font-bold">Transit Distance</span>

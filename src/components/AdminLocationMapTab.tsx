@@ -37,6 +37,7 @@ import {
   GeoCoordinate 
 } from '../services/googleMapsEngine';
 import { InteractiveKenyaTileMap } from './InteractiveKenyaTileMap';
+import { FEATURE_FLAGS } from '../config/features';
 
 // Default seed records for administrative demonstration and operations dispatch
 const SEED_OPERATIONAL_RECORDS: HynovaLocationRecord[] = [
@@ -451,8 +452,8 @@ export const AdminLocationMapTab: React.FC = () => {
               </span>
             </div>
 
-            {/* Google Cloud Project Billing Notice (shown if BillingNotEnabledMapError occurs) */}
-            {isBillingError && (
+            {/* Google Cloud Project Billing Notice (only shown when feature flag is enabled but billing fails) */}
+            {FEATURE_FLAGS.ENABLE_GOOGLE_MAPS_LOCATION_PICKER && isBillingError && (
               <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-900 text-xs space-y-1.5 animate-in fade-in">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-black text-amber-950">
@@ -481,8 +482,8 @@ export const AdminLocationMapTab: React.FC = () => {
               </div>
             )}
 
-            {/* Google Map or InteractiveKenyaTileMap Fallback */}
-            {isBillingError ? (
+            {/* Google Map or InteractiveKenyaTileMap */}
+            {!FEATURE_FLAGS.ENABLE_GOOGLE_MAPS_LOCATION_PICKER || isBillingError ? (
               <InteractiveKenyaTileMap
                 coords={currentCoords}
                 zoom={13}

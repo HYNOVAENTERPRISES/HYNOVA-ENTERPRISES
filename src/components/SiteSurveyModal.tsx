@@ -22,6 +22,8 @@ import { GoogleMapsEngineService, LocationCalculationResult } from '../services/
 import { calculateVatBreakdown } from '../data/pricingEngine';
 import { SiteSurveyRequest, HynovaReceipt, HynovaLocationRecord } from '../types';
 import { GoogleMapsLocationPicker } from './GoogleMapsLocationPicker';
+import { googleSheetsOps } from '../services/googleSheetsService';
+import { getAccessToken } from '../services/authService';
 
 interface SiteSurveyModalProps {
   isOpen: boolean;
@@ -127,14 +129,14 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
         paymentStatus: 'PAID',
         paymentMethod: 'Safaricom M-Pesa Express',
         mpesaReceiptNumber: transCode,
-        assignedTechnician: {
+        assignedTechnician: logistics.matchedTechnician ? {
           id: logistics.matchedTechnician.id,
           name: logistics.matchedTechnician.name,
           phone: logistics.matchedTechnician.phone,
           rank: logistics.matchedTechnician.rank,
           distanceKm: logistics.technicianDistanceKm,
           rating: logistics.matchedTechnician.rating,
-        },
+        } : undefined,
         surveyStatus: 'SCHEDULED',
         preferredDate,
         preferredTimeSlot,
@@ -162,6 +164,50 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
       setBookedSurvey(newSurvey);
       setGeneratedReceipt(newReceipt);
       setStep(3);
+
+      // Synchronize directly into authoritative HYNOVA OPS Google Sheets operational layer
+      try {
+        const addedCustomer = googleSheetsOps.addCustomer({
+          purchaserName: customerName,
+          purchaserPhone: customerPhone,
+          purchaserEmail: '',
+          installationRecipient: `${customerName} (Self)`,
+          installationLocation: confirmedLocation?.fullAddress || addressOrTown || `${selectedCounty} County`,
+          propertyType: propertyType,
+        });
+
+        const addedSurvey = googleSheetsOps.addSiteSurvey({
+          customerId: addedCustomer.customerId,
+          siteLocation: confirmedLocation?.fullAddress || addressOrTown || `${selectedCounty} County`,
+          distanceKm: logistics.technicianDistanceKm,
+          siteComplexity: 'Standard',
+          assessingTechnician: logistics.matchedTechnician ? logistics.matchedTechnician.name : 'Awaiting Assignment',
+          engineeringFindingsSummary: `Site assessment confirmed for ${preferredDate} (${preferredTimeSlot}). Focus: ${systemInterest}. Pin: [${confirmedLocation?.lat?.toFixed(4)}, ${confirmedLocation?.lng?.toFixed(4)}]`,
+        });
+
+        getAccessToken().then(token => {
+          if (token) {
+            googleSheetsOps.appendRowToGoogleSheet(
+              'Site_Surveys',
+              [
+                addedSurvey.surveyId,
+                addedSurvey.customerId,
+                addedSurvey.siteLocation,
+                addedSurvey.distanceKm,
+                addedSurvey.siteComplexity,
+                addedSurvey.surveyFeeKES,
+                addedSurvey.assessingTechnician,
+                addedSurvey.surveyStatus,
+                addedSurvey.engineeringFindingsSummary,
+                addedSurvey.associatedJobId
+              ],
+              token
+            ).catch(err => console.warn('Background sheet append note:', err));
+          }
+        });
+      } catch (err) {
+        console.warn('Local sheet sync note:', err);
+      }
 
       if (onSurveyBooked) {
         onSurveyBooked(newSurvey, newReceipt);
@@ -212,7 +258,7 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
 
           {/* STEP 1: FORM & GOOGLE MAPS CALCULATION */}
           {step === 1 && (
-            <form onSubmit={handleProceedToPayment} className="space-y-6">
+            <div className="space-y-6">
               {/* Mandatory Policy Banner */}
               <div className="p-4 rounded-2xl bg-[#F0C9CB]/30 border border-[#DB7D81]/40 space-y-1.5 text-xs">
                 <div className="flex items-center gap-2 font-black text-[#C01E25]">
@@ -224,7 +270,7 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
                   Protects technician time, prevents quotation abuse, and guarantees 100% Bill of Materials precision.
                 </p>
                 <p className="text-[11px] text-[#5C4D50]">
-                  * Site survey fees are non-refundable. At HYNOVA's discretion, fee may be credited toward project hardware balance.
+                  * Site survey fees are non-refundable. At our discretion, the fee may be credited toward your project hardware balance.
                 </p>
               </div>
 
@@ -325,14 +371,15 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
                 </div>
 
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleProceedToPayment}
                   className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-[#C01E25] hover:bg-[#a1181e] text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-[#C01E25]/25 transition-all cursor-pointer"
                 >
                   <span>Proceed to M-Pesa (KES {totalSurveyFee.toLocaleString()})</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
-            </form>
+            </div>
           )}
 
           {/* STEP 2: M-PESA PAYMENT CONFIRMATION */}
@@ -436,23 +483,41 @@ export const SiteSurveyModal: React.FC<SiteSurveyModalProps> = ({
               </div>
 
               {/* Lead Technician Card */}
-              <div className="bg-[#EEECEC]/40 p-4 rounded-2xl border border-[#EEECEC] text-xs text-left max-w-md mx-auto flex items-center gap-3">
-                <img
-                  src={logistics.matchedTechnician.avatar}
-                  alt={logistics.matchedTechnician.name}
-                  className="w-12 h-12 rounded-2xl object-cover border-2 border-[#C01E25] shrink-0"
-                />
-                <div>
-                  <span className="text-[10px] text-[#8F7B7F] uppercase font-bold block">Assigned Lead Technician</span>
-                  <div className="font-extrabold text-sm text-[#1E1B1C]">{logistics.matchedTechnician.name}</div>
-                  <div className="text-[#5C4D50]">
-                    Scheduled: <strong>{preferredDate} ({preferredTimeSlot})</strong>
-                  </div>
-                  <div className="text-[#C01E25] font-bold text-[11px] mt-0.5">
-                    Direct Line: {logistics.matchedTechnician.phone}
+              {logistics.matchedTechnician ? (
+                <div className="bg-[#EEECEC]/40 p-4 rounded-2xl border border-[#EEECEC] text-xs text-left max-w-md mx-auto flex items-center gap-3">
+                  <img
+                    src={logistics.matchedTechnician.avatar}
+                    alt={logistics.matchedTechnician.name}
+                    className="w-12 h-12 rounded-2xl object-cover border-2 border-[#C01E25] shrink-0"
+                  />
+                  <div>
+                    <span className="text-[10px] text-[#8F7B7F] uppercase font-bold block">Assigned Lead Technician</span>
+                    <div className="font-extrabold text-sm text-[#1E1B1C]">{logistics.matchedTechnician.name}</div>
+                    <div className="text-[#5C4D50]">
+                      Scheduled: <strong>{preferredDate} ({preferredTimeSlot})</strong>
+                    </div>
+                    <div className="text-[#C01E25] font-bold text-[11px] mt-0.5">
+                      Direct Line: {logistics.matchedTechnician.phone}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-[#EEECEC]/40 p-4 rounded-2xl border border-[#EEECEC] text-xs text-left max-w-md mx-auto flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#C01E25]/10 text-[#C01E25] border-2 border-[#C01E25] shrink-0 flex items-center justify-center font-black text-sm">
+                    HYN
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-[#8F7B7F] uppercase font-bold block">Field Technician Status</span>
+                    <div className="font-extrabold text-sm text-[#1E1B1C]">Awaiting Technician Assignment</div>
+                    <div className="text-[#5C4D50]">
+                      Preferred Slot: <strong>{preferredDate} ({preferredTimeSlot})</strong>
+                    </div>
+                    <div className="text-emerald-700 font-bold text-[11px] mt-0.5">
+                      Our dispatch coordinator will contact {customerPhone}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                 <button

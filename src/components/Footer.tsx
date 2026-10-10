@@ -43,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({
           <div className="space-y-4 max-w-sm">
             <HynovaLogo variant="horizontal" size="md" />
             <p className="text-xs text-[#5C4D50] leading-relaxed">
-              Kenya&apos;s trusted technology advisor and turnkey infrastructure solutions provider. Sizing, certified installation, and M-Pesa escrow protection for homes, businesses, and institutions.
+              We are Kenya&apos;s trusted technology advisor and turnkey infrastructure solutions provider. We deliver sizing, certified installation, and M-Pesa escrow protection for homes, businesses, and institutions.
             </p>
             <div className="space-y-1.5 text-xs text-[#5C4D50]">
               <div className="flex items-center gap-2">

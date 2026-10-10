@@ -357,11 +357,11 @@ export const SecurityArchitectureView: React.FC<SecurityArchitectureViewProps> =
               <div className="flex items-center gap-3 mb-2">
                 <BrainCircuit className="w-6 h-6 text-[#C01E25]" />
                 <h2 className="text-xl font-black text-[#1E1B1C]">
-                  HYNOVA AI Scoped Permissions & Zero-Leakage Guarantee
+                  Our AI Scoped Permissions & Zero-Leakage Guarantee
                 </h2>
               </div>
               <p className="text-xs sm:text-sm text-[#5C4D50] leading-relaxed max-w-4xl">
-                Artificial Intelligence models within the HYNOVA ecosystem execute inside isolated sandbox containers. AI is strictly prohibited from accessing information beyond user authorization. Model weights and inference contexts are transient and never trained on private customer or competitor data.
+                Artificial Intelligence models within our ecosystem execute inside isolated sandbox containers. AI is strictly prohibited from accessing information beyond user authorization. Model weights and inference contexts are transient and never trained on private customer or competitor data.
               </p>
             </div>
 

@@ -59,7 +59,7 @@ export const WhyHynovaSection: React.FC<WhyHynovaSectionProps> = ({ onNavigate }
       title: 'Objective Sizing',
       subtitle: 'Data-Driven Engineering Guidance',
       icon: BrainCircuit,
-      description: 'HYNOVA provides objective guidance, estimating solar loads, energy needs, and camera coverage angles in seconds to generate transparent, code-compliant specifications.',
+      description: 'We provide objective guidance, estimating solar loads, energy needs, and camera coverage angles in seconds to generate transparent, code-compliant specifications.',
       points: [
         'Instant preliminary BOM estimates',
         'Guidance tailored to your stated budget',
@@ -71,7 +71,7 @@ export const WhyHynovaSection: React.FC<WhyHynovaSectionProps> = ({ onNavigate }
       title: 'Infrastructure Vision',
       subtitle: 'County Inclusion Across Kenya',
       icon: MapPin,
-      description: 'We envision a future where every county in Kenya has access to trusted technology infrastructure through the HYNOVA ecosystem.',
+      description: 'We envision a future where every county in Kenya has access to trusted technology infrastructure through our ecosystem.',
       points: [
         'Aiming to bridge urban-rural digital gaps',
         'Empowering local county-based technician talent',
@@ -85,13 +85,13 @@ export const WhyHynovaSection: React.FC<WhyHynovaSectionProps> = ({ onNavigate }
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-xs font-bold uppercase tracking-wider text-[#C01E25] bg-[#F0C9CB]/40 px-3 py-1 rounded-full">
-            The HYNOVA Advantage
+            Our Advantage
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#1E1B1C] mt-3 mb-4 tracking-tight">
-            Why HYNOVA
+            Why Work With Us
           </h2>
           <p className="text-[#5C4D50] text-base sm:text-lg">
-            Built on a foundational commitment: Earn trust through transparency. Underpromise, deliver, and grow with integrity.
+            Built on our foundational commitment: Earn trust through transparency. Underpromise, deliver, and grow with integrity.
           </p>
         </div>
 
@@ -102,15 +102,15 @@ export const WhyHynovaSection: React.FC<WhyHynovaSectionProps> = ({ onNavigate }
           <div className="relative z-10 max-w-4xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFFFFF]/10 backdrop-blur-xs text-[11px] font-black uppercase tracking-wider text-[#F0C9CB] mb-3">
               <Sparkles className="w-3 h-3 text-[#DB7D81]" />
-              <span>HYNOVA Core Positioning</span>
+              <span>Our Core Positioning</span>
             </div>
 
             <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-[#FFFFFF] tracking-tight leading-snug mb-3">
-              HYNOVA is not a CCTV company. HYNOVA is not a solar company. HYNOVA is not a networking company.
+              We are not just a CCTV company. We are not just a solar company. We are not just a networking company.
             </h3>
 
             <p className="text-sm sm:text-base text-[#EEECEC] font-normal leading-relaxed mb-6">
-              <strong className="text-[#FFFFFF] font-extrabold">HYNOVA is Kenya&apos;s AI Powered Technology Fulfillment Network.</strong> Our role is to connect{' '}
+              <strong className="text-[#FFFFFF] font-extrabold">We are HYNOVA ENTERPRISES — Kenya&apos;s AI Powered Technology Fulfillment Network.</strong> Our role is to connect{' '}
               <span className="text-[#F0C9CB] font-bold">Customers</span>,{' '}
               <span className="text-[#F0C9CB] font-bold">AI Recommendations</span>,{' '}
               <span className="text-[#F0C9CB] font-bold">Certified Technicians</span>,{' '}
@@ -125,7 +125,7 @@ export const WhyHynovaSection: React.FC<WhyHynovaSectionProps> = ({ onNavigate }
               </div>
               <div className="bg-[#C01E25] px-4 py-2 rounded-xl text-[#FFFFFF] font-extrabold shadow-sm flex items-center gap-2">
                 <ArrowRight className="w-4 h-4" />
-                <span>HYNOVA coordinates delivery.</span>
+                <span>We coordinate delivery.</span>
               </div>
             </div>
           </div>

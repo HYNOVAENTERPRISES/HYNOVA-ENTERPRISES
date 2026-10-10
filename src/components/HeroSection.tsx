@@ -85,10 +85,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
           {/* MASTER HOMEPAGE SUBHEADLINE */}
           <p className="text-lg sm:text-xl text-[#5C4D50] font-normal leading-relaxed mb-8 max-w-2xl mx-auto">
-            Tell us what you need, what you are trying to achieve, and what you are working with. HYNOVA AI helps you find a practical technology solution for your budget.
+            Tell us what you need, what you are trying to achieve, and what you are working with. We help you find a practical technology solution tailored to your budget.
           </p>
 
-          {/* SECTION 1 CTAs: PRIMARY (Get My HYNOVA Recommendation) & SECONDARY (Talk to HYNOVA on WhatsApp) */}
+          {/* SECTION 1 CTAs: PRIMARY & SECONDARY */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8">
             <button
               id="hero-primary-cta"
@@ -96,7 +96,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#C01E25] hover:bg-[#a1181e] text-[#FFFFFF] font-extrabold text-base shadow-lg shadow-[#C01E25]/25 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               <Sparkles className="w-5 h-5" />
-              <span>Get My HYNOVA Recommendation</span>
+              <span>Get Our Recommendation</span>
             </button>
 
             <button
@@ -105,7 +105,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#FFFFFF] hover:bg-[#25D366]/10 text-[#1E1B1C] hover:text-[#128C7E] border border-[#25D366]/40 font-bold text-base flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
             >
               <MessageCircle className="w-5 h-5 fill-[#25D366] text-[#25D366]" />
-              <span>Talk to HYNOVA on WhatsApp</span>
+              <span>Talk to Us on WhatsApp</span>
             </button>
           </div>
 

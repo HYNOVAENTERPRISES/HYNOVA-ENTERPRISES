@@ -175,7 +175,7 @@ export interface LocationCalculationResult {
   customerCoords: GeoCoordinate;
   nearestSupplierHub: SupplierHub;
   supplierDistanceKm: number;
-  matchedTechnician: MatchedTechnician;
+  matchedTechnician: MatchedTechnician | null;
   technicianDistanceKm: number;
   technicianTravelMinutes: number;
   zone: TravelZone;
@@ -289,111 +289,9 @@ export const AUTHORIZED_SUPPLIER_HUBS: SupplierHub[] = [
   },
 ];
 
-// Certified Technicians Network Pool with Verified Specializations
-export const VERIFIED_TECHNICIAN_POOL: MatchedTechnician[] = [
-  {
-    id: 'tech-001',
-    name: 'Brian Mwangi Kibet',
-    phone: '+254 722 000 148',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80',
-    rank: 'Specialist Technician',
-    rating: 4.96,
-    reviewsCount: 84,
-    specialization: 'Solar Microgrids & CCTV AcuSense',
-    homeCounty: 'Nairobi',
-    baseLocationName: 'Westlands / Parklands Hub',
-    coordinates: { lat: -1.268, lng: 36.808 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Immediately',
-    certifiedModules: ['EPRA T2 Solar PV', 'Hikvision Certified Security', 'Safety & Data Privacy'],
-  },
-  {
-    id: 'tech-002',
-    name: 'Dennis Ochieng Otieno',
-    phone: '+254 733 999 215',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80',
-    rank: 'Master Technician',
-    rating: 4.98,
-    reviewsCount: 142,
-    specialization: 'Enterprise Fiber, Starlink & Biometric Gate Automation',
-    homeCounty: 'Machakos',
-    baseLocationName: 'Athi River / Syokimau Base',
-    coordinates: { lat: -1.438, lng: 36.965 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Immediately',
-    certifiedModules: ['NCA Electrical Works', 'Centurion Smart Gate Certified', 'Customer Service & Conduct'],
-  },
-  {
-    id: 'tech-003',
-    name: 'Faith Chebet Korir',
-    phone: '+254 711 345 889',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=256&q=80',
-    rank: 'Senior Technician',
-    rating: 4.92,
-    reviewsCount: 68,
-    specialization: 'Commercial AI Surveillance & Perimeter Alarms',
-    homeCounty: 'Kiambu',
-    baseLocationName: 'Ruiru / Thika Road Corridor',
-    coordinates: { lat: -1.148, lng: 36.958 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Tomorrow',
-    certifiedModules: ['Hikvision AI Systems', 'Wi-Fi 6 Mesh Integration', 'Site Safety & PPE'],
-  },
-  {
-    id: 'tech-004',
-    name: 'Hamisi Bakari Mwatela',
-    phone: '+254 720 882 190',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80',
-    rank: 'Master Technician',
-    rating: 4.95,
-    reviewsCount: 112,
-    specialization: 'Off-Grid Coastal Solar & Marine Surveillance',
-    homeCounty: 'Mombasa',
-    baseLocationName: 'Nyali / Diani Coast Hub',
-    coordinates: { lat: -4.035, lng: 39.712 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Immediately',
-    certifiedModules: ['EPRA T3 Solar PV', 'Marine IP68 Weatherproofing', 'Platform Protocols'],
-  },
-  {
-    id: 'tech-005',
-    name: 'Samuel Kiprop Cheruiyot',
-    phone: '+254 725 441 332',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=256&q=80',
-    rank: 'Senior Technician',
-    rating: 4.91,
-    reviewsCount: 57,
-    specialization: 'Agribusiness Solar Water Telemetry & Hybrid Power',
-    homeCounty: 'Nakuru',
-    baseLocationName: 'Nakuru Town / Naivasha Hub',
-    coordinates: { lat: -0.295, lng: 36.068 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Immediately',
-    certifiedModules: ['EPRA Solar Pumping', 'IoT Telemetry Sensors', 'Professional Conduct'],
-  },
-  {
-    id: 'tech-006',
-    name: 'Kennedy Omondi Aloo',
-    phone: '+254 712 990 771',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=256&q=80',
-    rank: 'Specialist Technician',
-    rating: 4.94,
-    reviewsCount: 76,
-    specialization: 'Hospitality Wi-Fi 6 & Security Command Centers',
-    homeCounty: 'Kisumu',
-    baseLocationName: 'Milimani / Kisumu Central Depot',
-    coordinates: { lat: -0.095, lng: 34.76 },
-    distanceKm: 0,
-    travelMinutes: 0,
-    availability: 'Available Tomorrow',
-    certifiedModules: ['Enterprise Wi-Fi Mesh', 'CCTV Video Walls', 'Data Privacy Standards'],
-  },
-];
+// STRICT REAL-WORLD STATE: Current number of HYNOVA technicians is 0.
+// The Technicians worksheet is the ONLY authoritative source of truth.
+export const VERIFIED_TECHNICIAN_POOL: MatchedTechnician[] = [];
 
 export class GoogleMapsEngineService {
   /**
@@ -504,15 +402,16 @@ export class GoogleMapsEngineService {
 
   /**
    * 4-Priority Technician Matching Algorithm
-   * Priority 1: Nearest certified technician
-   * Priority 2: Highest rated technician
-   * Priority 3: Availability
-   * Priority 4: Required specialization
+   * Strictly queries the actual technician pool. If 0 records exist, returns null.
    */
   static matchTechnician(
     customerCoords: GeoCoordinate,
     requiredSpecialization?: string
-  ): MatchedTechnician {
+  ): MatchedTechnician | null {
+    if (VERIFIED_TECHNICIAN_POOL.length === 0) {
+      return null;
+    }
+
     const candidates = VERIFIED_TECHNICIAN_POOL.map((tech) => {
       const dist = this.calculateDistanceKm(tech.coordinates, customerCoords);
       const minutes = this.estimateTravelMinutes(dist);
@@ -524,13 +423,9 @@ export class GoogleMapsEngineService {
     });
 
     // Score based on the 4 mandatory priorities:
-    // Priority 1: Distance (0 to 100 points, lower distance = more points)
-    // Priority 2: Rating (up to 40 points)
-    // Priority 3: Availability (Immediate = 20 pts, Tomorrow = 10 pts)
-    // Priority 4: Specialization match (up to 20 pts)
     const scored = candidates.map((cand) => {
       let score = Math.max(0, 100 - cand.distanceKm * 0.5);
-      score += cand.rating * 8; // e.g. 4.96 * 8 = 39.68 pts
+      score += cand.rating * 8;
       if (cand.availability === 'Available Immediately') score += 20;
       else if (cand.availability === 'Available Tomorrow') score += 10;
 
@@ -542,7 +437,7 @@ export class GoogleMapsEngineService {
     });
 
     scored.sort((a, b) => b.score - a.score);
-    return scored[0].candidate;
+    return scored[0]?.candidate || null;
   }
 
   /**
@@ -655,8 +550,8 @@ export class GoogleMapsEngineService {
 
     // 3. Nearest Technician Match
     const matchedTechnician = this.matchTechnician(coords, params.requiredSpecialty);
-    const techDist = matchedTechnician.distanceKm;
-    const travelTime = matchedTechnician.travelMinutes;
+    const techDist = matchedTechnician ? matchedTechnician.distanceKm : 0;
+    const travelTime = matchedTechnician ? matchedTechnician.travelMinutes : 0;
 
     // 4. Travel Zone Classification
     const zoneInfo = this.getTravelZone(techDist);
@@ -716,9 +611,9 @@ export class GoogleMapsEngineService {
       distanceFromZoneKm: nearestHubInfo.distanceKm,
       nearestZoneName: nearestHubInfo.hub.name,
       distanceFromTechnicianKm: techDist,
-      nearestTechnicianId: matchedTechnician.id,
-      nearestTechnicianName: matchedTechnician.name,
-      nearestTechnicianRank: matchedTechnician.rank,
+      nearestTechnicianId: matchedTechnician ? matchedTechnician.id : undefined,
+      nearestTechnicianName: matchedTechnician ? matchedTechnician.name : 'Awaiting Technician Assignment',
+      nearestTechnicianRank: matchedTechnician ? matchedTechnician.rank : 'Pending Assignment',
       estimatedTravelKm: techDist,
       estimatedTravelTimeMinutes: travelTime,
       serviceZoneTier: zoneInfo.zone,
@@ -789,16 +684,19 @@ export class GoogleMapsEngineService {
     // Nearest Supplier
     const { hub: nearestSupplierHub, distanceKm: supplierDistanceKm } = this.findNearestSupplierHub(customerCoords);
 
-    // Matched Technician
+    // Matched Technician (strictly queries actual technician pool, null if 0 technicians)
     const matchedTechnician = this.matchTechnician(customerCoords, requiredSpecialty);
-    const technicianDistanceKm = matchedTechnician.distanceKm;
-    const technicianTravelMinutes = matchedTechnician.travelMinutes;
+    const technicianDistanceKm = matchedTechnician ? matchedTechnician.distanceKm : 0;
+    const technicianTravelMinutes = matchedTechnician ? matchedTechnician.travelMinutes : 0;
 
-    // Travel Zone
-    const zoneInfo = this.getTravelZone(technicianDistanceKm);
+    // Travel Zone (falls back to service hub / county calculation if no technician assigned yet)
+    const hubInfo = this.findNearestServiceHub(customerCoords);
+    const zoneDistanceKm = matchedTechnician ? technicianDistanceKm : Math.min(hubInfo.distanceKm, 25);
+    const zoneInfo = this.getTravelZone(zoneDistanceKm);
 
     // Google Maps Directions link
-    const origin = encodeURIComponent(`${matchedTechnician.coordinates.lat},${matchedTechnician.coordinates.lng}`);
+    const originCoords = matchedTechnician ? matchedTechnician.coordinates : hubInfo.hub.coordinates;
+    const origin = encodeURIComponent(`${originCoords.lat},${originCoords.lng}`);
     const destName = specificAddressOrTown
       ? `${specificAddressOrTown}, ${normalized}, Kenya`
       : `${countyData.hubTown}, ${normalized} County, Kenya`;

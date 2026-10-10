@@ -228,7 +228,7 @@ export const PopularPackagesSection: React.FC<PopularPackagesSectionProps> = ({
             Outcome-Based Infrastructure Packages
           </h2>
           <p className="text-[#5C4D50] text-base sm:text-lg">
-            Customers purchase outcomes. HYNOVA coordinates delivery. Transparent starting baselines across all 47 counties of Kenya.
+            You purchase outcomes. We coordinate delivery. Transparent starting baselines across all 47 counties of Kenya.
           </p>
         </div>
 
@@ -372,7 +372,7 @@ export const PopularPackagesSection: React.FC<PopularPackagesSectionProps> = ({
           <div className="space-y-1 text-xs text-[#5C4D50] max-w-2xl">
             <div className="flex items-center gap-2 font-black text-[#1E1B1C] text-sm">
               <ShieldCheck className="w-4 h-4 text-[#C01E25]" />
-              <span>HYNOVA Pricing & Kenyan Tax Compliance Formula</span>
+              <span>Our Pricing & Kenyan Tax Compliance Formula</span>
             </div>
             <p>
               Formula: <strong>(Equipment + Technician Labor + Travel + Installation + Workmanship Warranty + Platform Margin) + VAT (16%) = Customer Price</strong>.

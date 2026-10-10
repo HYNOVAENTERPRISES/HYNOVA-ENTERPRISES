@@ -46,7 +46,7 @@ export const WhatsAppFloatingButton: React.FC<WhatsAppFloatingButtonProps> = ({
         {/* Desktop Quick Hint Tooltip */}
         {showTooltip && (
           <div className="hidden sm:flex items-center gap-2 bg-[#1E1B1C] text-[#FFFFFF] text-xs px-3 py-1.5 rounded-xl shadow-lg animate-in fade-in-50 slide-in-from-left-2">
-            <span>Talk to HYNOVA Engineer in Kenya</span>
+            <span>Talk with our team in Kenya</span>
           </div>
         )}
       </aside>

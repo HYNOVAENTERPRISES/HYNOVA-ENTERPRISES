@@ -72,7 +72,7 @@ export const SolutionsView: React.FC<SolutionsViewProps> = ({
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F0C9CB]/40 text-xs font-bold text-[#C01E25] mb-3">
             <Cpu className="w-3.5 h-3.5" />
-            <span>HYNOVA 7 Infrastructure Pillars</span>
+            <span>Our 7 Infrastructure Pillars</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-[#1E1B1C] tracking-tight mb-3">
             Enterprise-Grade Technology Architectures

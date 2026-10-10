@@ -3,6 +3,9 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import sheetsRouter from "./src/server/sheetsRoutes";
+import { serverSheetsStore, extractAuth } from "./src/server/sheetsOperations";
+import { HynovaAdvisorEngine } from "./src/services/advisorEngine";
 
 dotenv.config();
 
@@ -10,6 +13,102 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Mount Secure Google Sheets Operations & RBAC Backend
+app.use("/api/sheets", sheetsRouter);
+
+// SECTION 14 & 15 DIRECT API ENDPOINTS FOR TECHNICIAN REGISTRY
+app.get("/api/technicians", (_req, res) => {
+  const techs = serverSheetsStore.getTechnicians();
+  res.json({
+    success: true,
+    count: techs.length,
+    technicians: techs
+  });
+});
+
+app.get("/api/technicians/available", (_req, res) => {
+  const availableTechs = serverSheetsStore.getAvailableTechnicians();
+  res.json({
+    success: true,
+    count: availableTechs.length,
+    technicians: availableTechs
+  });
+});
+
+app.get("/api/technicians/by-county/:county", (req, res) => {
+  const countyTechs = serverSheetsStore.getTechniciansByCounty(req.params.county);
+  res.json({
+    success: true,
+    count: countyTechs.length,
+    county: req.params.county,
+    technicians: countyTechs
+  });
+});
+
+app.get("/api/technicians/by-skill/:skill", (req, res) => {
+  const skillTechs = serverSheetsStore.getTechniciansBySkill(req.params.skill);
+  res.json({
+    success: true,
+    count: skillTechs.length,
+    skill: req.params.skill,
+    technicians: skillTechs
+  });
+});
+
+app.post("/api/jobs/:jobId/assign-technician", async (req, res) => {
+  const { role, token } = extractAuth(req);
+  const { jobId } = req.params;
+
+  if (!['DISPATCH', 'OPERATIONS', 'ADMIN', 'EXECUTIVE'].includes(role)) {
+    return res.status(403).json({
+      success: false,
+      error: `Access Denied: Role '${role}' is not authorized to assign technicians.`
+    });
+  }
+
+  const job = serverSheetsStore.jobs.find(j => j.jobId === jobId);
+  if (!job) {
+    return res.status(404).json({
+      success: false,
+      error: `Job '${jobId}' not found.`
+    });
+  }
+
+  // Strict Payment-Gate: Verify payment before assigning technician
+  const relatedOrder = serverSheetsStore.orders.find(o => o.jobIdOrQuote === jobId || o.orderId === jobId);
+  const isPaymentVerified = relatedOrder && ['Escrow Funded', 'Paid', 'Disbursed to Technician', 'Fully Settled'].includes(relatedOrder.paymentStatus);
+  if (!isPaymentVerified) {
+    return res.status(402).json({
+      success: false,
+      error: {
+        code: 'PAYMENT_UNVERIFIED',
+        message: `Payment has not been verified for Job '${jobId}'. Technician assignment is strictly payment-gated.`
+      }
+    });
+  }
+
+  const eligibleTechs = serverSheetsStore.getAvailableTechnicians();
+  if (eligibleTechs.length === 0) {
+    job.lifecycleStatus = 'Awaiting Technician Assignment';
+    return res.status(422).json({
+      success: false,
+      error: {
+        code: 'NO_ELIGIBLE_TECHNICIAN',
+        message: 'No eligible HYNOVA technician is currently recorded as available.'
+      },
+      jobStatus: 'Awaiting Technician Assignment'
+    });
+  }
+
+  const assigned = eligibleTechs[0];
+  job.lifecycleStatus = 'Assigned';
+  res.json({
+    success: true,
+    message: `Technician ${assigned.technicianId} (${assigned.fullName}) assigned to Job ${jobId}.`,
+    assignedTechnician: assigned
+  });
+});
 
 // Container health check endpoint
 app.get("/api/health", (_req, res) => {
@@ -36,178 +135,116 @@ function getAiClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// AI Recommendation Engine Endpoint
+// AI Recommendation Engine Endpoint (Strict Catalog Grounding & 3-Tier Budget Ceilings)
 app.post("/api/recommend", async (req, res) => {
   try {
     const { budget, location, propertyType, needs, goals, customerType } = req.body;
-    const ai = getAiClient();
+    const numBudget = Math.max(5000, parseInt(budget) || 100000);
+    const loc = location || "Nairobi County";
+    const prop = propertyType || "Residential Villa / Compound";
+    const needsArr = Array.isArray(needs) ? needs : [needs || "Solar & CCTV"];
 
-    if (ai) {
-      const prompt = `You are HYNOVA Enterprises' Senior Infrastructure AI Solutions Architect in Kenya.
-MASTER PRICING PRINCIPLE & AFFORDABILITY PROMISE:
-- HYNOVA believes technology should be accessible regardless of budget.
-- The AI Recommendation Engine MUST NEVER reject a customer simply because they have a small budget.
-- Minimum supported customer budget: KES 5,000.
-- When budget is between KES 5,000 and KES 20,000, focus on practical entry level solutions, phased implementations, upgrades, consultations, diagnostics, networking improvements, smart devices, and future ready recommendations.
-- Never make the customer feel their budget is too small. Respond with: "Let's start with what you have and build from there." (Swahili: "Tuanze na kile uli nacho.")
-- Identify:
-  1. What can realistically be achieved today
-  2. What may require a phased approach
-  3. What upgrades can be added later
-  4. The most cost effective solution for the customer's current situation.
-- HYNOVA 5 Official Budget Categories:
-  1. Starter: KES 5,000 – 20,000 (Small improvements, diagnostics, consultations, smart devices, basic networking, entry level security, phased projects)
-  2. Essential: KES 20,001 – 50,000 (Basic home and small business solutions)
-  3. Standard: KES 50,001 – 150,000 (Most home, office, and SME technology deployments)
-  4. Professional: KES 150,001 – 500,000 (Larger properties, advanced security, networking, solar, automation)
-  5. Enterprise: KES 500,001+ (Schools, institutions, developers, commercial facilities, large scale infrastructure)
-- Response Tone Guidelines:
-  - Budget <= KES 10,000: "Based on your budget, we can recommend several starting options and improvements that move you closer to your goal. As your needs grow, HYNOVA can help you expand your solution in phases."
-  - Budget KES 10,001 - 20,000: "We can recommend an entry level security, networking, smart home, or automation solution that fits your current budget while leaving room for future upgrades."
-  - Budget > KES 500,000: "We can design a more comprehensive solution with greater coverage, automation, scalability, and advanced features."
-- The AI must never recommend a solution outside the customer's stated budget without clearly explaining why.
-- Prioritize: Customer Goal, Customer Budget, Location, Property Type, Scalability.
+    // 1. Generate strictly catalog-grounded 3-tier solution bounded by selected budget
+    const grounded3Tiers = HynovaAdvisorEngine.generateThreeTierRecommendation({
+      categoryText: needsArr.join(" "),
+      selectedBudgetKES: numBudget,
+      location: loc,
+      propertyType: prop,
+      goalsText: goals || ""
+    });
 
-Customer Parameters:
-- Target Customer Budget: KES ${budget || "Not specified"} (Minimum KES 5,000)
-- Location (Kenyan County/Town): ${location || "Nairobi County"}
-- Property Type: ${propertyType || "Commercial / Residential"}
-- Needs & Scope: ${Array.isArray(needs) ? needs.join(", ") : needs || "Smart security & solar"}
-- Strategic Goals: ${goals || "Reliable power, automated security, and cost reduction"}
-- Customer Profile: ${customerType || "Property Owner / Business"}
+    // 2. Map the HYNOVA Recommended tier as the primary active package configuration
+    const activeTier = grounded3Tiers.hynovaRecommendedTier;
 
-Return a JSON object strictly following this structure:
-{
-  "packageName": "Descriptive package name (e.g., 'HYNOVA Starter Security Gateway' or 'HYNOVA Hybrid Solar Matrix')",
-  "executiveSummary": "2-3 sentences explaining why this solution matches their requirements in Kenya",
-  "affordabilityPromise": "Affordability guidance quote aligned with customer budget",
-  "phasedRoadmap": {
-    "achievedToday": ["1-3 items realistically achieved today within budget"],
-    "phasedApproach": ["Phased expansion steps for upcoming milestones"],
-    "futureUpgrades": ["High-value future hardware add-ons"],
-    "costEffectiveSummary": "Cost-effective summary statement"
-  },
-  "pricingDisclaimer": "All figures are estimated project ranges based on 2026 Kenyan market rates. Final guaranteed pricing is subject to physical site assessment, roof/cable pathway measurements, and engineering verification.",
-  "estimatedProjectRangeKES": "e.g. KES 5,000 – KES 18,000",
-  "recommendedTier": "Starter | Essential | Standard | Professional | Enterprise",
-  "budgetTiers": [
-    {
-      "tier": "Starter",
-      "title": "Starter Solution",
-      "rangeKES": "KES 5,000 – 20,000",
-      "minPriceKES": 5000,
-      "maxPriceKES": 20000,
-      "hardwareSummary": ["Single-point smart camera / mini-UPS / Wi-Fi extender", "Diagnostic site assessment"],
-      "laborSummary": "Certified Technician site testing & device setup",
-      "warrantyPeriod": "1 Year Hardware & Workmanship Warranty",
-      "suitableFor": "Small improvements, diagnostics, consultations, entry security & phased projects"
-    },
-    {
-      "tier": "Essential",
-      "title": "Essential Package",
-      "rangeKES": "KES 20,001 – 50,000",
-      "minPriceKES": 20001,
-      "maxPriceKES": 50000,
-      "hardwareSummary": ["2–3 Channel ColorVu cameras or 1kVA Inverter backup", "Surge protected cabling"],
-      "laborSummary": "Level-2 Senior Technician installation & commissioning",
-      "warrantyPeriod": "1 Year On-Site SLA & Guarantee",
-      "suitableFor": "Basic home and small business solutions"
-    },
-    {
-      "tier": "Standard",
-      "title": "Standard Package",
-      "rangeKES": "KES 50,001 – 150,000",
-      "minPriceKES": 50001,
-      "maxPriceKES": 150000,
-      "hardwareSummary": ["4–8 Channel AcuSense CCTV or 3kVA–5kVA Lithium Solar", "Gigabit Wi-Fi 6 Mesh"],
-      "laborSummary": "Level-3 Senior Specialist with EPRA/NCA certification",
-      "warrantyPeriod": "2 Years Manufacturer + 1 Year On-Site SLA",
-      "suitableFor": "Standard family homes, offices, retail branches"
-    },
-    {
-      "tier": "Professional",
-      "title": "Professional Package",
-      "rangeKES": "KES 150,001 – 500,000",
-      "minPriceKES": 150001,
-      "maxPriceKES": 500000,
-      "hardwareSummary": ["5kW–10kW Hybrid Solar Microgrid, Biometric Gates, Starlink", "Dual redundancy"],
-      "laborSummary": "Level-4 Master Engineer + 2-person certified crew",
-      "warrantyPeriod": "3 Years Hardware + Priority Emergency Response",
-      "suitableFor": "Larger properties, advanced security, networking, solar, and automation projects"
-    },
-    {
-      "tier": "Enterprise",
-      "title": "Enterprise Package",
-      "rangeKES": "KES 500,001+ (Custom Engineering Quotation)",
-      "minPriceKES": 500001,
-      "maxPriceKES": 15000000,
-      "hardwareSummary": ["Multi-building fiber, 3-phase microgrids, ANPR radar, BMS integration"],
-      "laborSummary": "Dedicated Project Lead & specialized certified crew",
-      "warrantyPeriod": "Comprehensive SLA with quarterly preventative maintenance",
-      "suitableFor": "Schools, institutions, developers, commercial facilities, large scale infrastructure",
-      "requiresAdminApproval": true
-    }
-  ],
-  "marginIntegrity": {
-    "minGrossMargin": 20,
-    "targetGrossMargin": 35,
-    "estimatedGrossMargin": 32,
-    "status": "OPTIMAL"
-  },
-  "estimatedCosts": {
-    "hardwareKES": 52000,
-    "installationKES": 14000,
-    "permitsAndCommissioningKES": 4000,
-    "totalKES": 70000,
-    "monthlyFinancingEstimateKES": 6500,
-    "hardwareRangeKES": "KES 45,000 – KES 58,000",
-    "laborRangeKES": "KES 12,000 – KES 18,000"
-  },
-  "timeline": "e.g., 2-4 Business Days",
-  "hardwareBillOfMaterials": [
-    { "item": "string", "specs": "string", "quantity": "string", "supplierCategory": "string" }
-  ],
-  "requiredTechnician": {
-    "specialty": "e.g. Solar Energy & AI Telematics",
-    "minimumRank": "Specialist Technician (Level 3)",
-    "certificationsRequired": ["EPRA Solar PV", "HYNOVA Tier-3 Certified"],
-    "assignedCount": 2
-  },
-  "maintenanceOptions": [
-    { "tier": "Standard Care", "costPerYearKES": 12000, "features": ["Quarterly inspections", "Firmware updates"] },
-    { "tier": "HYNOVA 24/7 SLA", "costPerYearKES": 28000, "features": ["Same-day emergency response", "Continuous telemetry", "Parts warranty"] }
-  ],
-  "financingOptions": [
-    { "name": "Milestone Escrow Payment", "details": "Funds secured in M-Pesa escrow and released only upon installation sign-off" },
-    { "name": "Commercial Green Infrastructure SACCO / Bank Loan", "details": "Low interest partner asset financing" }
-  ],
-  "kenyanComplianceNotes": "Notes on EPRA, NCA, or CAK standards if applicable"
-}`;
+    // Determine timeline from tier
+    const timeline = activeTier.estimatedTimeline;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-        },
-      });
+    // Hardware BOM formatted from real catalog items
+    const hardwareBillOfMaterials = activeTier.items
+      .filter(it => !it.isService)
+      .map(it => ({
+        item: it.name,
+        specs: it.description,
+        quantity: `${it.quantity} ${it.uom}`,
+        supplierCategory: it.sku.startsWith("HYN-SOL") ? "Solar Power" : it.sku.startsWith("HYN-SEC") || it.sku.startsWith("HYN-CAM") ? "Security Optics" : "Infrastructure"
+      }));
 
-      if (response.text) {
-        const parsed = JSON.parse(response.text);
-        return res.json({ success: true, data: parsed });
-      }
-    }
+    const responsePayload = {
+      packageName: `HYNOVA ${grounded3Tiers.scopeCategory} — ${activeTier.headline}`,
+      executiveSummary: `Catalog-verified ${grounded3Tiers.scopeCategory.toLowerCase()} engineered for ${prop} in ${loc}. Delivered strictly within your selected budget ceiling of KES ${numBudget.toLocaleString()} without invented rates or simulated personnel.`,
+      affordabilityPromise: numBudget <= 20000
+        ? "Let's start with what you have and build from there. (Tuanze na kile uli nacho.)"
+        : "Our recommended option gives you the strongest solution we can build within your selected budget.",
+      pricingDisclaimer: grounded3Tiers.pricingIntegrityNote,
+      estimatedProjectRangeKES: `KES ${grounded3Tiers.lowestPriceTier.grandTotalInclVatKES.toLocaleString()} – KES ${activeTier.grandTotalInclVatKES.toLocaleString()}`,
+      recommendedTier: "Recommended",
+      // Three Grounded Budget Recommendations
+      lowestPriceTier: grounded3Tiers.lowestPriceTier,
+      middlePriceTier: grounded3Tiers.middlePriceTier,
+      hynovaRecommendedTier: grounded3Tiers.hynovaRecommendedTier,
+      selectedBudgetKES: numBudget,
+      technicianStatus: "Awaiting technician assignment",
+      phasedRoadmap: {
+        achievedToday: activeTier.phasedPath?.achievedToday || [
+          `Turnkey ${activeTier.headline} deployment meeting your core requirement`,
+          "Certified installation and testing with 1-Year Workmanship Warranty",
+          "Digital commissioning and client mobile streaming/telematics setup"
+        ],
+        phasedApproach: [
+          `Lowest Price Option (KES ${grounded3Tiers.lowestPriceTier.grandTotalInclVatKES.toLocaleString()}): Most affordable viable starter setup`,
+          `Middle Price Option (KES ${grounded3Tiers.middlePriceTier.grandTotalInclVatKES.toLocaleString()}): Balanced coverage and reliability`,
+          `HYNOVA Recommended (KES ${activeTier.grandTotalInclVatKES.toLocaleString()}): Strongest-value solution within your selected budget`
+        ],
+        futureUpgrades: activeTier.phasedPath?.futureUpgrades || [
+          "Additional camera points or battery storage capacity",
+          "Automated smart energy and security telemetry expansion",
+          "Multi-year SLA preventative maintenance contract"
+        ],
+        costEffectiveSummary: activeTier.phasedPath?.costAdvantage || "Constructed strictly from genuine HYNOVA catalog items without price markups or fictitious packages."
+      },
+      marginIntegrity: {
+        minGrossMargin: 20,
+        targetGrossMargin: 35,
+        estimatedGrossMargin: 30,
+        status: "OPTIMAL"
+      },
+      estimatedCosts: {
+        hardwareKES: activeTier.hardwareTotalInclVatKES,
+        installationKES: activeTier.servicesTotalInclVatKES,
+        permitsAndCommissioningKES: 0,
+        totalKES: activeTier.grandTotalInclVatKES,
+        monthlyFinancingEstimateKES: Math.round((activeTier.grandTotalInclVatKES / 12) * 1.08),
+        hardwareRangeKES: `KES ${activeTier.hardwareTotalInclVatKES.toLocaleString()}`,
+        laborRangeKES: `KES ${activeTier.servicesTotalInclVatKES.toLocaleString()}`
+      },
+      timeline,
+      hardwareBillOfMaterials,
+      requiredTechnician: {
+        specialty: activeTier.headline.includes("Solar") ? "Solar PV & Inverter Systems" : "Smart Security & Data Cabling",
+        minimumRank: "Certified Technician",
+        certificationsRequired: ["NCA Telecommunications", "EPRA Solar Compliance"],
+        assignedCount: 0 // Truthful: 0 assigned technicians until payment verified
+      },
+      maintenanceOptions: [
+        { tier: "Standard Care", costPerYearKES: 12000, features: ["Quarterly preventative inspections", "Firmware calibration"] },
+        { tier: "HYNOVA 24/7 SLA", costPerYearKES: 28000, features: ["Same-day emergency dispatch", "Continuous cloud telemetry"] }
+      ],
+      financingOptions: [
+        { name: "Milestone Escrow Payment", details: "Funds secured in M-Pesa escrow and released only upon installation sign-off" },
+        { name: "Commercial Green Infrastructure SACCO / Bank Loan", details: "Asset-backed partner financing for verified businesses" }
+      ],
+      kenyanComplianceNotes: "100% compliant with Energy and Petroleum Regulatory Authority (EPRA) and NCA construction standards. 16% VAT fully itemized."
+    };
 
-    // High quality market-based fallback tailored for Kenya
     return res.json({
       success: true,
-      data: getFallbackRecommendation({ budget, location, propertyType, needs, goals }),
+      data: responsePayload
     });
   } catch (error: any) {
-    console.warn("AI recommendation fallback triggered:", error?.message);
+    console.warn("AI recommendation error:", error?.message);
     return res.json({
       success: true,
-      data: getFallbackRecommendation(req.body),
+      data: getFallbackRecommendation(req.body)
     });
   }
 });
@@ -221,16 +258,26 @@ const handleAiAgent = async (req: any, res: any) => {
     const ai = getAiClient();
 
     if (ai && userQuery) {
+      const technicianCount = serverSheetsStore.getTechnicians().length;
+      const technicianGuidance = `
+CRITICAL HYNOVA TECHNICIAN REGISTRY RULE:
+- The Technicians worksheet in HYNOVA OPS is the ONLY authoritative source of truth.
+- The current count of registered technicians in the spreadsheet registry is exactly ${technicianCount}.
+- If asked how many technicians HYNOVA has in Kiambu, Nairobi, or any other Kenyan county:
+  State clearly: "There are currently 0 technicians recorded for that county in the HYNOVA technician registry."
+- NEVER fabricate, invent, estimate, simulate, or assume technician names, numbers, or county coverage.
+- If a customer places an order or completes payment, the order/job enters "Awaiting Technician Assignment" until actual certified personnel are verified in the Technicians worksheet.`;
+
       let systemPrompt = "";
       switch (agentType) {
         case "technician":
-          systemPrompt = "You are HYNOVA Technician AI. You provide Kenyan field engineers and technicians with electrical schematics, inverter fault codes, CCTV IP configurations, wiring pinouts, solar battery sizing calculations, and installation compliance (EPRA/NCA). Be precise, technical, and safety-oriented.";
+          systemPrompt = "You are HYNOVA Technician AI. You provide Kenyan field engineers and technicians with electrical schematics, inverter fault codes, CCTV IP configurations, wiring pinouts, solar battery sizing calculations, and installation compliance (EPRA/NCA). Be precise, technical, and safety-oriented." + technicianGuidance;
           break;
         case "supplier":
-          systemPrompt = "You are HYNOVA Supplier AI. You analyze hardware demand trends across Kenyan counties, suggest inventory re-order points, identify fastest-selling solar inverters and IP cameras, and optimize wholesale margins.";
+          systemPrompt = "You are HYNOVA Supplier AI. You analyze hardware demand trends across Kenyan counties, suggest inventory re-order points, identify fastest-selling solar inverters and IP cameras, and optimize wholesale margins." + technicianGuidance;
           break;
         case "admin":
-          systemPrompt = "You are HYNOVA Admin Operations AI. You provide executive insights into platform GMV, technician job completion rates across Nairobi, Mombasa, Kisumu, and Nakuru, identify risk alerts, and forecast regional infrastructure demand.";
+          systemPrompt = "You are HYNOVA Admin Operations AI. You provide executive insights into platform operations, ensuring strict fidelity to the HYNOVA OPS spreadsheet registers." + technicianGuidance;
           break;
         case "customer":
         default:
@@ -243,7 +290,7 @@ When a customer enters a budget between KES 5,000 and KES 20,000:
 - For budget <= 10,000: "Based on your budget, we can recommend several starting options and improvements that move you closer to your goal. As your needs grow, HYNOVA can help you expand your solution in phases."
 - For budget KES 10,001 - 20,000: "We can recommend an entry level security, networking, smart home, or automation solution that fits your current budget while leaving room for future upgrades."
 - For budget > 500,000: "We can design a more comprehensive solution with greater coverage, automation, scalability, and advanced features."
-Always guide Kenyan property owners, businesses, schools, and developers through realistic paths forward with verified hardware and certified technicians.`;
+Always guide Kenyan property owners, businesses, schools, and developers through realistic paths forward with verified hardware and certified technicians.${technicianGuidance}`;
           break;
       }
 
@@ -264,7 +311,7 @@ Always guide Kenyan property owners, businesses, schools, and developers through
       customer: `Jambo! At HYNOVA, we believe technology should be accessible regardless of budget — starting from as low as KES 5,000. Let's start with what you have and build from there! We can recommend practical entry-level options today (like smart Wi-Fi cameras, surge protection, or router mini-UPS backup) and design a phased roadmap as your needs expand. How can we assist your home or business today?`,
       technician: `Field Diagnostic Guide: For erratic lithium battery communication over CAN/RS485 with Deye/Sunsynk inverters, verify baud rate 9600 vs 19200, check termination resistor switch on battery pack #1, and inspect RJ45 pin 4/5 (CAN High/Low) seating. Ensure ground bonding meets NCA/EPRA standards.`,
       supplier: `Supply Trend Alert: Demand for 48V 100Ah LiFePO4 rack batteries and 5MP ColorVu AI Turret cameras has risen 34% in Nairobi and Kiambu this quarter. Recommended restocking target: +45 units before month end to capture upcoming holiday school-recess installations.`,
-      admin: `Ecosystem Health: Platform completed 142 installations this week with 99.2% customer sign-off rating. Peak demand detected in Nakuru & Eldoret agribusiness solar pumps. Recommended action: Onboard 15 additional Level-2 certified electrical technicians in Rift Valley.`,
+      admin: `Registry Status: The authoritative Technicians worksheet currently records ${serverSheetsStore.getTechnicians().length} technicians. All active customer projects remain in 'Awaiting Technician Assignment' until verified field engineers are onboarded to the HYNOVA OPS spreadsheet registry.`,
     };
 
     const reply = fallbackResponses[agentType] || fallbackResponses.customer;
@@ -424,7 +471,7 @@ function getFallbackRecommendation(params: any) {
         specialty: "Entry Level Hardware & Diagnostics",
         minimumRank: "Certified Technician (Level 1)",
         certificationsRequired: ["NCA Telecommunications", "HYNOVA Verified"],
-        assignedCount: 1,
+        assignedCount: 0,
       },
       maintenanceOptions: [
         { tier: "Starter Care", costPerYearKES: 3500, features: ["Bi-annual safety audit", "Firmware updates", "Phone support"] },
@@ -494,7 +541,7 @@ function getFallbackRecommendation(params: any) {
       specialty: "Solar PV Hybrid Systems & AI Infrastructure",
       minimumRank: "Specialist Technician (Level 3)",
       certificationsRequired: ["EPRA T3 Solar License", "NCA Certified", "HYNOVA Master Specialist"],
-      assignedCount: 2,
+      assignedCount: 0,
     },
     maintenanceOptions: [
       { tier: "ProActive Maintenance", costPerYearKES: 24000, features: ["Quarterly thermal solar scans", "Firmware & AI model calibration", "24/7 cloud telemetry monitor"] },

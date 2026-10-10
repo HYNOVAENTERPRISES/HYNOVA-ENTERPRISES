@@ -14,7 +14,7 @@ export const AIEcosystemChat: React.FC = () => {
   const [messages, setMessages] = useState<Array<{ sender: 'user' | 'ai'; text: string }>>([
     {
       sender: 'ai',
-      text: 'Jambo! I am your HYNOVA Technology Advisor. Ask me anything about sizing solar systems, CCTV security, Wi-Fi mesh, or equipment pricing anywhere in Kenya.',
+      text: 'Jambo! We are your HYNOVA technology advisory team. Ask us anything about sizing solar systems, CCTV security, Wi-Fi mesh, or equipment pricing anywhere in Kenya.',
     },
   ]);
   const [inputMsg, setInputMsg] = useState('');
@@ -50,7 +50,7 @@ export const AIEcosystemChat: React.FC = () => {
           ...prev,
           {
             sender: 'ai',
-            text: 'HYNOVA provides turnkey solutions tailored to your property and budget. Our packages feature genuine bonded equipment from authorized distributors and vetted installation with M-Pesa escrow protection. Would you like a direct consultation with an engineer?',
+            text: 'We provide turnkey solutions tailored to your property and budget. Our packages feature genuine bonded equipment from authorized distributors and vetted installation with M-Pesa escrow protection. Would you like a direct consultation with an engineer?',
           },
         ]);
       }

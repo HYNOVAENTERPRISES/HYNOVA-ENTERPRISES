@@ -155,6 +155,51 @@ export interface BudgetTierPackage {
   requiresAdminApproval?: boolean;
 }
 
+export interface SolutionItemRecord {
+  sku: string;
+  name: string;
+  description: string;
+  quantity: number;
+  uom: string;
+  unitPriceExclVatKES: number;
+  vatPerUnitKES: number;
+  totalUnitPriceInclVatKES: number;
+  lineTotalExclVatKES: number;
+  lineTotalVatKES: number;
+  lineTotalInclVatKES: number;
+  isService?: boolean;
+}
+
+export interface RecommendedTierSolutionRecord {
+  tierId: 'lowest' | 'middle' | 'recommended';
+  tierLabel: 'Lowest Price' | 'Middle Price' | 'HYNOVA Recommended';
+  badgeTitle: string;
+  headline: string;
+  description: string;
+  items: SolutionItemRecord[];
+  hardwareSubtotalExclVatKES: number;
+  hardwareVatKES: number;
+  hardwareTotalInclVatKES: number;
+  servicesSubtotalExclVatKES: number;
+  servicesVatKES: number;
+  servicesTotalInclVatKES: number;
+  subtotalExclVatKES: number;
+  vatKES: number;
+  grandTotalInclVatKES: number;
+  budgetCeilingKES: number;
+  remainingBudgetKES: number;
+  isWithinBudget: boolean;
+  warrantyPeriod: string;
+  estimatedTimeline: string;
+  suitableFor: string;
+  highlights: string[];
+  phasedPath?: {
+    achievedToday: string[];
+    futureUpgrades: string[];
+    costAdvantage: string;
+  };
+}
+
 export interface AIRecommendationResult {
   packageName: string;
   executiveSummary: string;
@@ -163,6 +208,13 @@ export interface AIRecommendationResult {
   budgetTiers?: BudgetTierPackage[];
   recommendedTier?: string;
   affordabilityPromise?: string;
+  // Three Grounded Budget Recommendations (Lowest Price, Middle Price, HYNOVA Recommended)
+  lowestPriceTier?: RecommendedTierSolutionRecord;
+  middlePriceTier?: RecommendedTierSolutionRecord;
+  hynovaRecommendedTier?: RecommendedTierSolutionRecord;
+  selectedBudgetKES?: number;
+  technicianStatus?: string;
+  pricingIntegrityNote?: string;
   phasedRoadmap?: {
     achievedToday: string[];
     phasedApproach: string[];
@@ -291,7 +343,7 @@ export interface CustomerProject {
   id: string;
   title: string;
   category: string;
-  status: 'Design Phase' | 'Dispatched' | 'Installation in Progress' | 'Quality Audit' | 'Operational';
+  status: 'Design Phase' | 'Awaiting Technician Assignment' | 'Dispatched' | 'Installation in Progress' | 'Quality Audit' | 'Operational';
   completionPercentage: number;
   budgetKES: number;
   subtotalKES?: number;
@@ -598,9 +650,9 @@ export interface HynovaLocationRecord {
   distanceFromZoneKm: number;
   nearestZoneName: string;
   distanceFromTechnicianKm: number;
-  nearestTechnicianId: string;
+  nearestTechnicianId?: string;
   nearestTechnicianName: string;
-  nearestTechnicianRank: TechnicianRank;
+  nearestTechnicianRank?: TechnicianRank | 'Pending Assignment';
   estimatedTravelKm: number;
   estimatedTravelTimeMinutes: number;
   serviceZoneTier: 'Zone A (0–15 KM)' | 'Zone B (15–40 KM)' | 'Zone C (40–100 KM)' | 'Zone D (100+ KM)';

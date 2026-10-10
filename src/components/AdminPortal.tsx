@@ -20,19 +20,21 @@ import {
   Edit2,
   Plus,
   Save,
-  Cpu
+  Cpu,
+  FileSpreadsheet
 } from 'lucide-react';
 import { AppView } from '../types';
 import { AuditLogService } from '../services/securityService';
 import { ProductCostDatabaseService, ProductCostItem } from '../data/productCostDatabase';
 import { AdminLocationMapTab } from './AdminLocationMapTab';
+import { GoogleSheetsOpsTab } from './GoogleSheetsOpsTab';
 
 interface AdminPortalProps {
   onNavigate: (view: AppView) => void;
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'locations' | 'products' | 'technicians' | 'escrow' | 'governance' | 'adminAI'>('overview');
+  const [activeTab, setActiveTab] = useState<'sheets' | 'overview' | 'locations' | 'products' | 'technicians' | 'escrow' | 'governance' | 'adminAI'>('sheets');
 
   // Operating Agreement Section 9: Central Product Cost Database State
   const [products, setProducts] = useState<ProductCostItem[]>(() => ProductCostDatabaseService.getProducts());
@@ -52,43 +54,23 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     }, 4500);
   };
 
-  // Pending Technician Verification Queue
-  const [pendingTechnicians, setPendingTechnicians] = useState([
-    {
-      id: 'TECH-APP-109',
-      name: 'Moses Omondi',
-      county: 'Kisumu County',
-      specialty: 'Solar Energy & Inverters',
-      experience: '5 Years',
-      documents: 'National ID, Police Clearance (Clean), EPRA T2',
-      status: 'Pending Review',
-    },
-    {
-      id: 'TECH-APP-110',
-      name: 'Faith Chebet',
-      county: 'Nakuru County',
-      specialty: 'Edge AI CCTV & Biometrics',
-      experience: '3 Years',
-      documents: 'National ID, Good Conduct Cert, D-Link Certified',
-      status: 'Pending Review',
-    },
-    {
-      id: 'TECH-APP-111',
-      name: 'Brian Kilonzo',
-      county: 'Machakos County',
-      specialty: 'Gate Automation & Intercoms',
-      experience: '4 Years',
-      documents: 'National ID, NCA Electrical Cert',
-      status: 'Pending Review',
-    },
-  ]);
+  // Pending Technician Verification Queue (Authoritative strict source-of-truth: 0 technicians until applied)
+  const [pendingTechnicians, setPendingTechnicians] = useState<Array<{
+    id: string;
+    name: string;
+    county: string;
+    specialty: string;
+    experience: string;
+    documents: string;
+    status: string;
+  }>>([]);
 
   // Escrow Queue
   const [escrowLedger, setEscrowLedger] = useState([
     {
       txId: 'ESC-9082',
       client: 'Karen Villa (David Karanja)',
-      technician: 'Dennis Koech',
+      technician: 'Awaiting Technician Assignment',
       amountKES: 340000,
       stage: 'Awaiting Testing Sign-off',
       status: 'Locked in M-Pesa Escrow',
@@ -96,7 +78,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     {
       txId: 'ESC-9079',
       client: 'Nalepo Safari Lodge',
-      technician: 'Samuel Mutiso',
+      technician: 'Awaiting Technician Assignment',
       amountKES: 580000,
       stage: 'Hardware Mounted',
       status: 'Locked in M-Pesa Escrow',
@@ -104,7 +86,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
     {
       txId: 'ESC-9065',
       client: 'Ruaka Heights Apartments',
-      technician: 'Samuel Mutiso',
+      technician: 'Awaiting Technician Assignment',
       amountKES: 135000,
       stage: 'Customer PIN Verified',
       status: 'Ready for Release',
@@ -261,10 +243,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b border-[#EEECEC] scrollbar-none">
           {[
+            { id: 'sheets', label: 'HYNOVA OPS (Google Sheets)', icon: FileSpreadsheet, highlight: true },
             { id: 'overview', label: 'Platform Overview', icon: ShieldCheck },
             { id: 'locations', label: 'Field Operations & Dispatch Map', icon: MapPin },
             { id: 'products', label: 'Product Cost Database (Sec 9)', icon: Package },
-            { id: 'technicians', label: 'Technician Approvals (3 Pending)', icon: Users },
+            { id: 'technicians', label: `Technician Approvals (${pendingTechnicians.length} Pending)`, icon: Users },
             { id: 'escrow', label: 'Escrow Financial Ledger', icon: Coins },
             { id: 'governance', label: 'RBAC & Super Admin Governance', icon: Lock },
             { id: 'adminAI', label: 'Admin AI & Anomaly Engine', icon: Sparkles },
@@ -278,10 +261,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
                 className={`whitespace-nowrap px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
                   isActive
                     ? 'bg-[#C01E25] text-[#FFFFFF] shadow-sm shadow-[#C01E25]/20'
-                    : 'bg-[#EEECEC]/60 text-[#5C4D50] hover:text-[#1E1B1C] hover:bg-[#EEECEC]'
+                    : (tab as any).highlight 
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100' 
+                      : 'bg-[#EEECEC]/60 text-[#5C4D50] hover:text-[#1E1B1C] hover:bg-[#EEECEC]'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${(tab as any).highlight && !isActive ? 'text-emerald-600' : ''}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -295,6 +280,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
             <span>Open AI Agent OS & Marketplace</span>
           </button>
         </div>
+
+        {/* TAB 0: HYNOVA OPS GOOGLE SHEETS */}
+        {activeTab === 'sheets' && (
+          <GoogleSheetsOpsTab />
+        )}
 
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
@@ -626,43 +616,60 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({ onNavigate }) => {
               </p>
             </div>
 
-            <div className="space-y-3">
-              {pendingTechnicians.map((t) => (
-                <div
-                  key={t.id}
-                  className="bg-[#FFFFFF] p-5 rounded-2xl border border-[#EEECEC] hover:border-[#DB7D81] transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-[#C01E25]">{t.id}</span>
-                      <span className="text-xs font-bold text-[#1E1B1C]">{t.name}</span>
-                      <span className="text-xs text-[#5C4D50]">({t.county})</span>
-                    </div>
-                    <div className="text-xs text-[#5C4D50]">
-                      Specialty: <strong>{t.specialty}</strong> • Experience: {t.experience}
-                    </div>
-                    <div className="text-[11px] text-[#DB7D81]">
-                      Dossier: {t.documents}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleApproveTech(t.id)}
-                      className="bg-[#C01E25] hover:bg-[#a1181e] text-[#FFFFFF] text-xs font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer"
-                    >
-                      Approve & Grant Badge
-                    </button>
-                    <button
-                      onClick={() => showNotification(`Requested further proof of DCI certificate from ${t.name}.`)}
-                      className="bg-[#EEECEC] text-[#5C4D50] text-xs font-semibold px-3 py-2 rounded-xl hover:bg-[#EEECEC]/80 cursor-pointer"
-                    >
-                      Request Info
-                    </button>
-                  </div>
+            {pendingTechnicians.length === 0 ? (
+              <div className="bg-[#FFFFFF] p-8 sm:p-12 rounded-3xl border border-[#EEECEC] text-center max-w-xl mx-auto space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#EEECEC]/60 text-[#5C4D50] flex items-center justify-center mx-auto">
+                  <Users className="w-6 h-6 text-[#5C4D50]" />
                 </div>
-              ))}
-            </div>
+                <h3 className="text-lg font-bold text-[#1E1B1C]">0 Pending Technician Applications</h3>
+                <p className="text-xs text-[#5C4D50] leading-relaxed">
+                  Strict Authoritative State: No unreviewed applicant submissions in the queue. Registered technicians will appear here for DCI police clearance and EPRA compliance verification prior to assignment eligibility.
+                </p>
+                <div className="pt-2">
+                  <span className="text-[11px] font-bold text-[#C01E25] bg-[#F0C9CB]/40 px-3 py-1 rounded-full">
+                    Technicians Worksheet Source of Truth: 0 Enrolled
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingTechnicians.map((t) => (
+                  <div
+                    key={t.id}
+                    className="bg-[#FFFFFF] p-5 rounded-2xl border border-[#EEECEC] hover:border-[#DB7D81] transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-[#C01E25]">{t.id}</span>
+                        <span className="text-xs font-bold text-[#1E1B1C]">{t.name}</span>
+                        <span className="text-xs text-[#5C4D50]">({t.county})</span>
+                      </div>
+                      <div className="text-xs text-[#5C4D50]">
+                        Specialty: <strong>{t.specialty}</strong> • Experience: {t.experience}
+                      </div>
+                      <div className="text-[11px] text-[#DB7D81]">
+                        Dossier: {t.documents}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleApproveTech(t.id)}
+                        className="bg-[#C01E25] hover:bg-[#a1181e] text-[#FFFFFF] text-xs font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Approve & Grant Badge
+                      </button>
+                      <button
+                        onClick={() => showNotification(`Requested further proof of DCI certificate from ${t.name}.`)}
+                        className="bg-[#EEECEC] text-[#5C4D50] text-xs font-semibold px-3 py-2 rounded-xl hover:bg-[#EEECEC]/80 cursor-pointer"
+                      >
+                        Request Info
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

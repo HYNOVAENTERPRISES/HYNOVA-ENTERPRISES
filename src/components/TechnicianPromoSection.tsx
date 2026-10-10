@@ -37,7 +37,7 @@ export const TechnicianPromoSection: React.FC<TechnicianPromoSectionProps> = ({
               </h2>
 
               <p className="text-sm sm:text-base text-[#5C4D50] leading-relaxed">
-                You never have to wonder who is entering your home or business. Every HYNOVA installation is conducted by rigorously screened, licensed technicians under strict safety oversight.
+                You never have to wonder who is entering your home or business. Every installation we coordinate is conducted by rigorously screened, licensed technicians under strict safety oversight.
               </p>
 
               {/* 3 Core Trust Pillars */}

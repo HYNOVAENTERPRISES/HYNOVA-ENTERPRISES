@@ -50,7 +50,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/80 mb-1">
               <Phone className="w-3.5 h-3.5" />
-              <span>Talk to HYNOVA</span>
+              <span>Talk to Us</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black">
               Connect With a Technology Advisor
@@ -104,7 +104,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               <CheckCircle2 className="w-10 h-10 text-[#C01E25] mx-auto" />
               <h3 className="text-lg font-bold text-[#1E1B1C]">Message Received</h3>
               <p className="text-xs text-[#5C4D50] max-w-sm mx-auto">
-                A HYNOVA technical consultant in {county} will call you at <strong className="text-[#1E1B1C]">{phone}</strong> within 15 minutes.
+                Our technical consultant in {county} will call you at <strong className="text-[#1E1B1C]">{phone}</strong> within 15 minutes.
               </p>
             </div>
           ) : (

@@ -28,8 +28,10 @@ import { TechnicianProfile, JobListing, AcademyCourse, TechnicianRank } from '..
 import { INITIAL_TECHNICIANS, INITIAL_JOBS, ACADEMY_COURSES, KENYAN_COUNTIES } from '../data/mockData';
 
 export const TechnicianPortal: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'academy' | 'ranking' | 'register' | 'support'>('dashboard');
-  const [technician, setTechnician] = useState<TechnicianProfile>(INITIAL_TECHNICIANS[0]);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'academy' | 'ranking' | 'register' | 'support'>(
+    INITIAL_TECHNICIANS.length > 0 ? 'dashboard' : 'register'
+  );
+  const [technician, setTechnician] = useState<TechnicianProfile | null>(INITIAL_TECHNICIANS[0] || null);
   const [jobs, setJobs] = useState<JobListing[]>(INITIAL_JOBS);
   const [courses, setCourses] = useState<AcademyCourse[]>(ACADEMY_COURSES);
 
@@ -81,12 +83,12 @@ export const TechnicianPortal: React.FC = () => {
     setCustomerSignedOff(true);
     setPaymentReleased(true);
     setJobs(jobs.map(j => j.id === selectedJob.id ? { ...j, status: 'Completed', escrowStatus: 'Released' } : j));
-    setTechnician(prev => ({
+    setTechnician(prev => prev ? ({
       ...prev,
       completedJobs: prev.completedJobs + 1,
       totalEarningsKES: prev.totalEarningsKES + selectedJob.budgetKES,
       earningsThisMonthKES: prev.earningsThisMonthKES + selectedJob.budgetKES,
-    }));
+    }) : null);
   };
 
   return (
@@ -101,7 +103,7 @@ export const TechnicianPortal: React.FC = () => {
               </span>
               <span className="text-xs font-semibold text-[#5C4D50] flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-[#C01E25]" />
-                {technician.county} ({technician.subCounty})
+                {technician ? `${technician.county} (${technician.subCounty})` : 'Registry Pending Enrollment'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1E1B1C] mt-1">
@@ -114,7 +116,7 @@ export const TechnicianPortal: React.FC = () => {
             <div className="bg-[#EEECEC]/50 px-3.5 py-2 rounded-xl border border-[#EEECEC] text-right">
               <span className="text-[10px] text-[#5C4D50] uppercase font-bold block">Available Balance</span>
               <span className="text-base font-black text-[#C01E25]">
-                KES {technician.earningsThisMonthKES.toLocaleString()}
+                KES {(technician?.earningsThisMonthKES || 0).toLocaleString()}
               </span>
             </div>
             <button
@@ -158,9 +160,54 @@ export const TechnicianPortal: React.FC = () => {
 
         {/* TAB 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Profile Overview Card */}
-            <div className="bg-[#FFFFFF] p-6 sm:p-8 rounded-3xl border border-[#DB7D81]/40 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          !technician ? (
+            <div className="bg-[#FFFFFF] p-8 sm:p-12 rounded-3xl border border-[#EEECEC] text-center max-w-2xl mx-auto space-y-5 my-8">
+              <div className="w-16 h-16 rounded-2xl bg-[#F0C9CB]/40 text-[#C01E25] flex items-center justify-center mx-auto">
+                <Wrench className="w-8 h-8" />
+              </div>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-[#C01E25] bg-[#F0C9CB]/40 px-3 py-1 rounded-full">
+                  Registry Status: 0 Enrolled Technicians
+                </span>
+                <h2 className="text-2xl font-black text-[#1E1B1C] mt-3">
+                  No Active Technician Profile Assigned
+                </h2>
+                <p className="text-xs sm:text-sm text-[#5C4D50] mt-2 max-w-md mx-auto leading-relaxed">
+                  In accordance with the strict HYNOVA source-of-truth registry, there are currently 0 active technician records in the Technicians worksheet. Are you an EPRA or NCA certified engineer or installer? Submit your credentials to join our verified national network.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                <div className="p-4 rounded-2xl bg-[#EEECEC]/40 border border-[#EEECEC]">
+                  <span className="text-[10px] font-bold text-[#5C4D50] uppercase block">Total Technicians</span>
+                  <span className="text-xl font-black text-[#1E1B1C]">0</span>
+                  <span className="text-[10px] text-[#8F7B7F] block">Spreadsheet Records</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#EEECEC]/40 border border-[#EEECEC]">
+                  <span className="text-[10px] font-bold text-[#5C4D50] uppercase block">Active / Available</span>
+                  <span className="text-xl font-black text-[#1E1B1C]">0 / 0</span>
+                  <span className="text-[10px] text-[#8F7B7F] block">Status: Awaiting Signup</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-[#EEECEC]/40 border border-[#EEECEC]">
+                  <span className="text-[10px] font-bold text-[#5C4D50] uppercase block">47 Counties</span>
+                  <span className="text-xl font-black text-[#C01E25]">Open for Enlistment</span>
+                  <span className="text-[10px] text-[#8F7B7F] block">EPRA / NCA Vetting</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('register')}
+                className="px-6 py-3.5 rounded-xl bg-[#C01E25] hover:bg-[#a1181e] text-white font-extrabold text-xs shadow-md shadow-[#C01E25]/20 transition-all cursor-pointer inline-flex items-center gap-2"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Submit Technician Onboarding Application</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Profile Overview Card */}
+              <div className="bg-[#FFFFFF] p-6 sm:p-8 rounded-3xl border border-[#DB7D81]/40 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div className="flex items-center gap-5">
                 <img
                   src={technician.avatar}
@@ -307,7 +354,8 @@ export const TechnicianPortal: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        )
+      )}
 
         {/* TAB 2: JOB BOARD (ESCROW FUNDED) */}
         {activeTab === 'jobs' && (
@@ -689,7 +737,7 @@ export const TechnicianPortal: React.FC = () => {
                     </h3>
                     <p className="text-xs text-[#5C4D50]">This verifiable digital credential certifies that</p>
                     <div className="text-xl font-extrabold text-[#C01E25] underline decoration-[#DB7D81]">
-                      {technician.name}
+                      {technician ? technician.name : (regForm.fullName || 'Certified Technician Candidate')}
                     </div>
                     <p className="text-xs text-[#5C4D50]">
                       has successfully demonstrated mastery of <strong>{selectedCourse.title}</strong> in accordance with EPRA and NCA standards.
