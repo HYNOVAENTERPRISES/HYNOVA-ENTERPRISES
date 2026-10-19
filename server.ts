@@ -5,6 +5,9 @@ import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import sheetsRouter from "./src/server/sheetsRoutes";
 import { serverSheetsStore, extractAuth } from "./src/server/sheetsOperations";
+import { authMiddleware } from "./src/server/authMiddleware";
+import { HynovaDatabase } from "./src/server/database";
+import { sendPhoneOtp, verifyPhoneOtp } from "./src/server/phoneVerification";
 import { HynovaAdvisorEngine } from "./src/services/advisorEngine";
 
 dotenv.config();
@@ -14,46 +17,211 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// CORS & Preflight middleware for production cross-domain and local architecture
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://hynovaenterprises.com',
+    'https://www.hynovaenterprises.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+  ];
+
+  const isAllowed = origin && (
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.hynovaenterprises.com') ||
+    origin.endsWith('.run.app')
+  );
+
+  if (isAllowed && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-session-token, x-google-token, x-verified-google-email');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
+app.use(authMiddleware);
+
 // Mount Secure Google Sheets Operations & RBAC Backend
 app.use("/api/sheets", sheetsRouter);
 
 // SECTION 14 & 15 DIRECT API ENDPOINTS FOR TECHNICIAN REGISTRY
-app.get("/api/technicians", (_req, res) => {
-  const techs = serverSheetsStore.getTechnicians();
-  res.json({
-    success: true,
-    count: techs.length,
-    technicians: techs
+// AUTH & MULTI-TENANT TOP-LEVEL API ENDPOINTS
+app.post("/api/auth/phone/send-otp", async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ success: false, error: "Phone number is required." });
+  const result = await sendPhoneOtp(phone);
+  const status = result.status === "COOLDOWN" ? 429 : result.status === "BLOCKED" ? 503 : result.success ? 200 : 400;
+  return res.status(status).json(result);
+});
+
+app.post("/api/auth/phone/verify-otp", async (req, res) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) return res.status(400).json({ success: false, error: "Phone and code required." });
+  const result = await verifyPhoneOtp(phone, code);
+  if (!result.success) {
+    const status = (result.status === "EXHAUSTED" || result.status === "EXPIRED") ? 410 : 400;
+    return res.status(status).json(result);
+  }
+  const isCrossSite = Boolean(req.headers.origin && !req.headers.origin.includes('localhost'));
+  res.cookie("hynova_session", result.sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" || isCrossSite,
+    sameSite: isCrossSite ? "none" : "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/"
+  });
+  return res.json(result);
+});
+
+app.get("/api/auth/me", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated) return res.json({ authenticated: false, role: "PUBLIC_CUSTOMER" });
+  return res.json({
+    authenticated: true,
+    userId: auth.userId,
+    tenantId: auth.tenantId,
+    role: auth.role,
+    phone: (auth as any).phone || null,
+    email: auth.email || null
   });
 });
 
-app.get("/api/technicians/available", (_req, res) => {
+app.post("/api/auth/logout", (req, res) => {
+  const auth = extractAuth(req);
+  if (auth.token) HynovaDatabase.deleteSessionByToken(auth.token);
+  res.clearCookie("hynova_session", { path: "/" });
+  return res.json({ success: true, message: "Logged out successfully." });
+});
+
+// MULTI-TENANT CUSTOMER DATA ENDPOINTS (STRICT ZERO-TRUST OWNER CHECKS)
+app.get("/api/customer/quotes", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+  const quotes = HynovaDatabase.getQuotesByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, count: quotes.length, quotes });
+});
+
+app.get("/api/customer/quotes/:quoteRef", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+  const { quoteRef } = req.params;
+  const quote = HynovaDatabase.getQuoteByTenantAndRef(auth.tenantId, quoteRef);
+  if (!quote) {
+    const otherTenantQuote = HynovaDatabase.db.prepare("SELECT tenant_id FROM quotes WHERE quote_ref = ?").get(quoteRef) as any;
+    if (otherTenantQuote) {
+      return res.status(403).json({ success: false, error: "Access Denied: You do not have permission to view this customer record." });
+    }
+    return res.status(404).json({ success: false, error: `Quote '${quoteRef}' not found.` });
+  }
+  return res.json({ success: true, quote });
+});
+
+app.patch("/api/customer/quotes/:quoteRef/status", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: "Authentication required." });
+  }
+  const { quoteRef } = req.params;
+  const { status } = req.body;
+  const quote = HynovaDatabase.getQuoteByTenantAndRef(auth.tenantId, quoteRef);
+  if (!quote) {
+    return res.status(403).json({ success: false, error: "Access Denied: You cannot modify another tenant's quote." });
+  }
+  const updated = HynovaDatabase.updateQuoteStatus(auth.tenantId, quoteRef, status);
+  return res.json({ success: updated, quoteRef, status });
+});
+
+app.get("/api/customer/orders", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) return res.status(401).json({ success: false, error: "Authentication required." });
+  const orders = HynovaDatabase.getOrdersByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, orders });
+});
+
+app.get("/api/customer/addresses", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) return res.status(401).json({ success: false, error: "Authentication required." });
+  const addresses = HynovaDatabase.getAddressesByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, addresses });
+});
+
+app.post("/api/customer/addresses", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) return res.status(401).json({ success: false, error: "Authentication required." });
+  const { label, county, estateOrLandmark } = req.body;
+  if (!label || !county || !estateOrLandmark) return res.status(400).json({ success: false, error: "Missing address fields." });
+  const address = HynovaDatabase.saveAddress(auth.tenantId, auth.userId || "usr_guest", label, county, estateOrLandmark);
+  return res.json({ success: true, address });
+});
+
+app.get("/api/customer/support", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) return res.status(401).json({ success: false, error: "Authentication required." });
+  const tickets = HynovaDatabase.getSupportTicketsByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, tickets });
+});
+
+app.post("/api/customer/support", (req, res) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) return res.status(401).json({ success: false, error: "Authentication required." });
+  const { subject, message } = req.body;
+  if (!subject || !message) return res.status(400).json({ success: false, error: "Subject and message required." });
+  const ticket = HynovaDatabase.saveSupportTicket(auth.tenantId, auth.userId || "usr_guest", subject, message);
+  return res.json({ success: true, ticket });
+});
+
+// STAFF & ADMIN PROTECTED TECHNICIAN REGISTRY ENDPOINTS
+app.get("/api/technicians", (req, res) => {
+  const auth = extractAuth(req);
+  const isStaff = ["SALES", "DISPATCH", "OPERATIONS", "FINANCE", "ADMIN", "EXECUTIVE"].includes(auth.role) && auth.authenticated;
+  if (!isStaff) {
+    return res.status(403).json({ success: false, error: `Access Denied: Role '${auth.role}' is not authorized to view internal technician records.` });
+  }
+  const techs = serverSheetsStore.getTechnicians();
+  res.json({ success: true, count: techs.length, technicians: techs });
+});
+
+app.get("/api/technicians/available", (req, res) => {
+  const auth = extractAuth(req);
+  const isStaff = ["SALES", "DISPATCH", "OPERATIONS", "FINANCE", "ADMIN", "EXECUTIVE"].includes(auth.role) && auth.authenticated;
+  if (!isStaff) {
+    return res.status(403).json({ success: false, error: `Access Denied: Role '${auth.role}' is not authorized to view available technicians.` });
+  }
   const availableTechs = serverSheetsStore.getAvailableTechnicians();
-  res.json({
-    success: true,
-    count: availableTechs.length,
-    technicians: availableTechs
-  });
+  res.json({ success: true, count: availableTechs.length, technicians: availableTechs });
 });
 
 app.get("/api/technicians/by-county/:county", (req, res) => {
+  const auth = extractAuth(req);
+  const isStaff = ["SALES", "DISPATCH", "OPERATIONS", "FINANCE", "ADMIN", "EXECUTIVE"].includes(auth.role) && auth.authenticated;
+  if (!isStaff) {
+    return res.status(403).json({ success: false, error: `Access Denied: Role '${auth.role}' is not authorized to view technicians.` });
+  }
   const countyTechs = serverSheetsStore.getTechniciansByCounty(req.params.county);
-  res.json({
-    success: true,
-    count: countyTechs.length,
-    county: req.params.county,
-    technicians: countyTechs
-  });
+  res.json({ success: true, count: countyTechs.length, county: req.params.county, technicians: countyTechs });
 });
 
 app.get("/api/technicians/by-skill/:skill", (req, res) => {
+  const auth = extractAuth(req);
+  const isStaff = ["SALES", "DISPATCH", "OPERATIONS", "FINANCE", "ADMIN", "EXECUTIVE"].includes(auth.role) && auth.authenticated;
+  if (!isStaff) {
+    return res.status(403).json({ success: false, error: `Access Denied: Role '${auth.role}' is not authorized to view technicians.` });
+  }
   const skillTechs = serverSheetsStore.getTechniciansBySkill(req.params.skill);
-  res.json({
-    success: true,
-    count: skillTechs.length,
-    skill: req.params.skill,
-    technicians: skillTechs
-  });
+  res.json({ success: true, count: skillTechs.length, skill: req.params.skill, technicians: skillTechs });
 });
 
 app.post("/api/jobs/:jobId/assign-technician", async (req, res) => {
@@ -139,7 +307,14 @@ function getAiClient(): GoogleGenAI | null {
 app.post("/api/recommend", async (req, res) => {
   try {
     const { budget, location, propertyType, needs, goals, customerType } = req.body;
-    const numBudget = Math.max(5000, parseInt(budget) || 100000);
+    const numBudget = Number(budget);
+    if (isNaN(numBudget) || numBudget < 5000) {
+      return res.status(400).json({
+        success: false,
+        error: "The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.",
+        minBudgetKES: 5000
+      });
+    }
     const loc = location || "Nairobi County";
     const prop = propertyType || "Residential Villa / Compound";
     const needsArr = Array.isArray(needs) ? needs : [needs || "Solar & CCTV"];
@@ -334,7 +509,10 @@ app.post("/api/ai-agent", handleAiAgent);
 app.post("/api/ai-agent-query", handleAiAgent);
 
 function getFallbackRecommendation(params: any) {
-  const numBudget = parseInt(params.budget) || 100000;
+  const numBudget = Number(params.budget);
+  if (isNaN(numBudget) || numBudget < 5000) {
+    throw new Error("The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.");
+  }
   const loc = params.location || "Nairobi County";
   const prop = params.propertyType || "Commercial / Residential Property";
 
@@ -576,4 +754,9 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.NODE_ENV !== "test" && !process.env.HYNOVA_TEST_MODE) {
+  startServer();
+}
+
+export default app;
+

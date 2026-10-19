@@ -20,39 +20,27 @@
   </defs>
 
   <g id="hynova-monogram">
-    <!-- Left slanted charcoal/black bar -->
-    <polygon points="160,227 326,227 451,490 305,490" fill="#231F20" />
-
-    <!-- Red stylized Hynova dynamic wing and loop -->
-    <path fill-rule="evenodd" fill="#C01E25" d="
-      M 418,227
-      L 584,227
-      L 556,285
-      C 544,310 535,335 528,362
-      C 560,363 605,365 655,372
-      C 745,385 830,420 845,465
-      C 858,505 815,532 755,535
-      C 660,540 575,505 520,430
-      L 508,490
-      L 370,490
-      L 415,395
-      L 252,395
-      L 242,400
-      L 212,400
-      L 225,392
-      L 200,392
-      L 138,368
-      L 248,365
-      L 426,365
-      L 458,295
-      Z
-      M 588,415
-      C 645,410 735,420 760,450
-      C 775,470 755,490 705,495
-      C 645,500 580,470 548,435
-      C 560,425 574,418 588,415
-      Z
-    " />
+    <!-- Left slanted solid charcoal bar (unbroken, pristine upright) -->
+    <polygon points="160,227 310,227 435,490 285,490" fill="#231F20" />
+    <!-- Right slanted solid crimson bar (unbroken, complete upright) -->
+    <polygon points="425,227 575,227 700,490 550,490" fill="#C01E25" />
+    <!-- Solid crimson crossbar uniting both uprights seamlessly -->
+    <polygon points="368,345 484,345 508,395 392,395" fill="#C01E25" />
+    <!-- Dynamic HYNOVA innovation wing and limitless loop -->
+    <path
+      fill="#C01E25"
+      fill-rule="evenodd"
+      d="
+        M 560,345
+        C 625,345 745,355 815,405
+        C 855,435 845,480 780,500
+        C 700,520 610,480 565,420
+        C 595,425 640,455 700,465
+        C 755,475 790,455 780,430
+        C 760,395 670,375 560,375
+        Z
+      "
+    />
   </g>
 
   <!-- Brand Typography -->

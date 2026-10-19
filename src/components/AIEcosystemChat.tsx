@@ -8,6 +8,7 @@ import {
   Phone,
   ArrowRight
 } from 'lucide-react';
+import { getApiUrl } from '../services/apiConfig';
 
 export const AIEcosystemChat: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,7 @@ export const AIEcosystemChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/ai-agent-query', {
+      const res = await fetch(getApiUrl('/api/ai-agent-query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

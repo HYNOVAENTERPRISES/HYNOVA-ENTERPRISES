@@ -1,3 +1,5 @@
+import { logout } from './services/authService';
+import { getApiUrl } from './services/apiConfig';
 import React, { useState, useEffect } from 'react';
 import { AppView, UserRole } from './types';
 import { Navbar } from './components/Navbar';
@@ -90,7 +92,19 @@ export default function App() {
     setCurrentView(view);
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    try {
+      const token = sessionStorage.getItem('hynova_session_token');
+      await fetch(getApiUrl('/api/auth/logout'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      sessionStorage.removeItem('hynova_session_token');
+      await logout();
+    } catch (e) {
+      // Continue cleanup on error
+    }
     setActiveRole('customer');
     setCurrentView('home');
   };

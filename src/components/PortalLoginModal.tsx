@@ -22,6 +22,7 @@ import {
 import { AppView, UserRole } from '../types';
 import { googleSignIn } from '../services/authService';
 import { googleSheetsOps } from '../services/googleSheetsService';
+import { getApiUrl } from '../services/apiConfig';
 
 interface PortalLoginModalProps {
   isOpen: boolean;
@@ -43,11 +44,17 @@ export const PortalLoginModal: React.FC<PortalLoginModalProps> = ({
   const [loginMethod, setLoginMethod] = useState<'phone-otp' | 'email-password'>('phone-otp');
   
   // Customer login states
-  const [phone, setPhone] = useState('0712 345 678');
+  const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [email, setEmail] = useState('david.karanja@example.com');
-  const [password, setPassword] = useState('••••••••');
+  const [otpStatus, setOtpStatus] = useState<'IDLE' | 'ACCEPTED' | 'BLOCKED' | 'COOLDOWN'>('IDLE');
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  const [providerChecklist, setProviderChecklist] = useState<string[]>([]);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
   // Customer register states (<60s)
   const [regFullName, setRegFullName] = useState('');
@@ -110,22 +117,89 @@ export const PortalLoginModal: React.FC<PortalLoginModalProps> = ({
     }
   };
 
-  // Handle Customer Phone OTP Send
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpSent(true);
-    setOtpCode('749210');
-  };
-
-  // Handle Customer Login Submit
-  const handleCustomerLoginSubmit = (e: React.FormEvent) => {
+  // Handle Real Customer Phone OTP Send
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
+    setOtpError(null);
+    setOtpMessage(null);
+
+    try {
+      const res = await fetch(getApiUrl('/api/auth/phone/send-otp'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ phone })
+      });
+
+      const data = await res.json();
+
+      if (data.status === 'BLOCKED') {
+        setOtpStatus('BLOCKED');
+        setOtpError(data.message || 'Live SMS delivery is BLOCKED: Provider credentials not configured.');
+        setProviderChecklist(data.checklist || []);
+      } else if (data.status === 'COOLDOWN') {
+        setOtpStatus('COOLDOWN');
+        setCooldownSeconds(data.cooldownSeconds || 60);
+        setOtpError(data.message);
+      } else if (res.ok && data.success) {
+        setOtpSent(true);
+        setOtpStatus('ACCEPTED');
+        setOtpMessage(data.message || 'Verification code requested. Please check your mobile device.');
+        setOtpCode('');
+        setCooldownSeconds(60);
+        const interval = setInterval(() => {
+          setCooldownSeconds(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        setOtpError(data.error || data.message || 'Failed to dispatch verification code.');
+      }
+    } catch (err: any) {
+      setOtpError('Network error connecting to verification gateway: ' + err.message);
+    } finally {
       setIsSubmitting(false);
-      onSelectPortal('customer-portal', 'customer');
-      onClose();
-    }, 500);
+    }
+  };
+
+  // Handle Real Customer Login Submit via Server Verification
+  const handleCustomerLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setOtpError(null);
+
+    try {
+      const res = await fetch(getApiUrl('/api/auth/phone/verify-otp'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ phone, code: otpCode })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        if (data.sessionToken) {
+          sessionStorage.setItem('hynova_session_token', data.sessionToken);
+        }
+        onSelectPortal('customer-portal', 'customer');
+        onClose();
+      } else {
+        setOtpError(data.message || data.error || 'Verification failed.');
+        if (data.attemptsRemaining !== undefined) {
+          setAttemptsRemaining(data.attemptsRemaining);
+        }
+      }
+    } catch (err: any) {
+      setOtpError('Verification gateway connection failed: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle Customer 60s Registration Submit
@@ -349,21 +423,54 @@ export const PortalLoginModal: React.FC<PortalLoginModalProps> = ({
                         />
                       </div>
 
+                      {/* Real Status & Alerts */}
+                      {otpMessage && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{otpMessage}</span>
+                        </div>
+                      )}
+
+                      {otpError && (
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <Shield className="w-4 h-4 text-[#C01E25] shrink-0 mt-0.5" />
+                            <span className="font-semibold">{otpError}</span>
+                          </div>
+                          {providerChecklist.length > 0 && (
+                            <div className="bg-white/90 p-2.5 rounded-lg border border-rose-100 space-y-1 text-[11px] text-[#5C4D50]">
+                              <span className="font-bold text-[#1E1B1C] block">Provider Configuration Required:</span>
+                              <ul className="list-disc list-inside space-y-0.5">
+                                {providerChecklist.map((item, idx) => (
+                                  <li key={idx}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {otpSent && (
-                        <div className="p-3 bg-[#F0C9CB]/30 border border-[#DB7D81] rounded-xl space-y-2 animate-in fade-in">
+                        <div className="p-3 bg-[#F0C9CB]/20 border border-[#DB7D81] rounded-xl space-y-2 animate-in fade-in">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-[#1E1B1C]">Enter 6-Digit SMS Code</span>
-                            <span className="text-[#C01E25] font-mono font-bold">Simulated: 749210</span>
+                            <span className="font-bold text-[#1E1B1C]">Enter 6-Digit SMS Verification Code</span>
+                            {attemptsRemaining !== null && (
+                              <span className="text-[#C01E25] font-mono font-bold text-[11px]">{attemptsRemaining} attempts left</span>
+                            )}
                           </div>
                           <input
                             type="text"
                             required
-                            maxLength={6}
+                            maxLength={8}
                             value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
-                            placeholder="749210"
-                            className="w-full text-center text-lg tracking-widest font-mono font-black p-2 rounded-lg border border-[#DB7D81] bg-[#FFFFFF] text-[#C01E25] focus:outline-none"
+                            onChange={(e) => setOtpCode(e.target.value.trim())}
+                            placeholder="Enter received code"
+                            className="w-full text-center text-lg tracking-widest font-mono font-black p-2.5 rounded-lg border border-[#DB7D81] bg-[#FFFFFF] text-[#C01E25] focus:outline-none"
+                            autoFocus
                           />
+                          <p className="text-[11px] text-[#5C4D50] text-center">
+                            Enter the one-time code delivered to your phone. Code expires in 10 minutes.
+                          </p>
                         </div>
                       )}
 

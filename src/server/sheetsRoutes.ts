@@ -1,3 +1,5 @@
+import { HynovaDatabase } from './database';
+import { sendPhoneOtp, verifyPhoneOtp, normalizeE164, getAvailableSmsProvider } from './phoneVerification';
 import { Router, Request, Response } from 'express';
 import { 
   serverSheetsStore, 
@@ -16,6 +18,215 @@ import {
 } from './sheetsOperations';
 
 const router = Router();
+
+// ============================================================================
+// REAL PHONE OTP AUTHENTICATION & MULTI-TENANT SESSION ENDPOINTS
+// ============================================================================
+
+// POST /api/sheets/auth/phone/send-otp
+router.post('/auth/phone/send-otp', async (req: Request, res: Response) => {
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).json({ success: false, error: 'Phone number is required.' });
+  }
+
+  const result = await sendPhoneOtp(phone);
+  if (!result.success) {
+    const statusCode = result.status === 'COOLDOWN' ? 429 : result.status === 'BLOCKED' ? 503 : 400;
+    return res.status(statusCode).json(result);
+  }
+  return res.json(result);
+});
+
+// POST /api/sheets/auth/phone/verify-otp
+router.post('/auth/phone/verify-otp', async (req: Request, res: Response) => {
+  const { phone, code } = req.body;
+  if (!phone || !code) {
+    return res.status(400).json({ success: false, error: 'Phone number and verification code are required.' });
+  }
+
+  const result = await verifyPhoneOtp(phone, code);
+  if (!result.success) {
+    const statusCode = (result.status === 'EXHAUSTED' || result.status === 'EXPIRED') ? 410 : 400;
+    return res.status(statusCode).json(result);
+  }
+
+  // Set secure HttpOnly session cookie
+  res.cookie('hynova_session', result.sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/'
+  });
+
+  return res.json(result);
+});
+
+// GET /api/sheets/auth/me
+router.get('/auth/me', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated) {
+    return res.json({
+      authenticated: false,
+      role: 'PUBLIC_CUSTOMER'
+    });
+  }
+
+  return res.json({
+    authenticated: true,
+    userId: auth.userId,
+    tenantId: auth.tenantId,
+    role: auth.role,
+    phone: (auth as any).phone || null,
+    email: auth.email || null
+  });
+});
+
+// POST /api/sheets/auth/logout
+router.post('/auth/logout', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (auth.token) {
+    HynovaDatabase.deleteSessionByToken(auth.token);
+  }
+  res.clearCookie('hynova_session', { path: '/' });
+  return res.json({ success: true, message: 'Logged out successfully.' });
+});
+
+// ============================================================================
+// MULTI-TENANT ISOLATED CUSTOMER DATA ENDPOINTS (STRICT OWNERSHIP ENFORCED)
+// ============================================================================
+
+// GET /api/sheets/customer/quotes — Read only quotes belonging to caller's tenant
+router.get('/customer/quotes', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required. Please sign in.' });
+  }
+
+  const quotes = HynovaDatabase.getQuotesByTenant(auth.tenantId);
+  return res.json({
+    success: true,
+    tenantId: auth.tenantId,
+    count: quotes.length,
+    quotes
+  });
+});
+
+// GET /api/sheets/customer/quotes/:quoteRef — Read single quote with tenant ownership enforcement
+router.get('/customer/quotes/:quoteRef', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const { quoteRef } = req.params;
+  const quote = HynovaDatabase.getQuoteByTenantAndRef(auth.tenantId, quoteRef);
+  if (!quote) {
+    // Check if quote exists for another tenant to prevent IDOR
+    const otherTenantQuote = HynovaDatabase.db.prepare('SELECT tenant_id FROM quotes WHERE quote_ref = ?').get(quoteRef) as any;
+    if (otherTenantQuote) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access Denied: You do not have permission to view this customer record.'
+      });
+    }
+    return res.status(404).json({ success: false, error: `Quote '${quoteRef}' not found.` });
+  }
+
+  return res.json({ success: true, quote });
+});
+
+// PATCH /api/sheets/customer/quotes/:quoteRef/status — Update status of caller's quote only
+router.patch('/customer/quotes/:quoteRef/status', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const { quoteRef } = req.params;
+  const { status } = req.body;
+  if (!status) {
+    return res.status(400).json({ success: false, error: 'Status is required.' });
+  }
+
+  const quote = HynovaDatabase.getQuoteByTenantAndRef(auth.tenantId, quoteRef);
+  if (!quote) {
+    return res.status(403).json({
+      success: false,
+      error: 'Access Denied: You cannot modify a quote that does not belong to your account.'
+    });
+  }
+
+  const updated = HynovaDatabase.updateQuoteStatus(auth.tenantId, quoteRef, status);
+  return res.json({ success: updated, quoteRef, status });
+});
+
+// GET /api/sheets/customer/orders — Read only orders belonging to caller's tenant
+router.get('/customer/orders', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const orders = HynovaDatabase.getOrdersByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, orders });
+});
+
+// GET /api/sheets/customer/addresses — Read saved addresses
+router.get('/customer/addresses', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const addresses = HynovaDatabase.getAddressesByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, addresses });
+});
+
+// POST /api/sheets/customer/addresses — Save address to tenant account
+router.post('/customer/addresses', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const { label, county, estateOrLandmark } = req.body;
+  if (!label || !county || !estateOrLandmark) {
+    return res.status(400).json({ success: false, error: 'label, county, and estateOrLandmark are required.' });
+  }
+
+  const address = HynovaDatabase.saveAddress(auth.tenantId, auth.userId || 'usr_unknown', label, county, estateOrLandmark);
+  return res.json({ success: true, address });
+});
+
+// GET /api/sheets/customer/support — Read support tickets
+router.get('/customer/support', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const tickets = HynovaDatabase.getSupportTicketsByTenant(auth.tenantId);
+  return res.json({ success: true, tenantId: auth.tenantId, tickets });
+});
+
+// POST /api/sheets/customer/support — Create support ticket
+router.post('/customer/support', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  if (!auth.authenticated || !auth.tenantId) {
+    return res.status(401).json({ success: false, error: 'Authentication required.' });
+  }
+
+  const { subject, message } = req.body;
+  if (!subject || !message) {
+    return res.status(400).json({ success: false, error: 'subject and message are required.' });
+  }
+
+  const ticket = HynovaDatabase.saveSupportTicket(auth.tenantId, auth.userId || 'usr_unknown', subject, message);
+  return res.json({ success: true, ticket });
+});
+
 
 // 1. GET METADATA
 router.get('/metadata', (req: Request, res: Response) => {
@@ -267,7 +478,7 @@ router.post('/site-survey/book', async (req: Request, res: Response) => {
 
 // 7. AUTHORIZED OPERATION: CREATE QUOTE
 router.post('/quote/create', async (req: Request, res: Response) => {
-  const { purchaserName, projectScope, hardwareSubtotalKES, labourKES, terms } = req.body;
+  const { purchaserName, projectScope, hardwareSubtotalKES, labourKES, terms, phone, email } = req.body;
 
   if (!purchaserName || !projectScope) {
     return res.status(400).json({ success: false, error: 'Purchaser Name and Project Scope are required.' });
@@ -279,8 +490,29 @@ router.post('/quote/create', async (req: Request, res: Response) => {
   const vat = Math.round(subtotal * serverSheetsStore.controlPanel.standardVatRate);
   const grandTotal = subtotal + vat;
 
+  if (grandTotal < 5000) {
+    return res.status(400).json({
+      success: false,
+      error: 'The minimum permitted project budget is KES 5,000. Please enter a project budget of at least KES 5,000.',
+      minBudgetKES: 5000
+    });
+  }
+
+  const auth = extractAuth(req);
+  let tenantId = auth.tenantId;
+  let userId = auth.userId || 'usr_guest';
+
+  if (!tenantId) {
+    // For guest quotes, securely allocate a persistent tenant ID linked to their phone or identity
+    const customerPhone = phone || (email ? '+2547' + Math.floor(10000000 + Math.random() * 89999999) : '+2547' + Math.floor(10000000 + Math.random() * 89999999));
+    const tenant = HynovaDatabase.getOrCreateTenantForPhone(customerPhone, purchaserName, email);
+    tenantId = tenant.tenant_id;
+    userId = tenant.user_id;
+  }
+
+  const quoteRef = serverSheetsStore.getNextQuoteRef();
   const newQuote: SheetQuote = {
-    quoteRef: serverSheetsStore.getNextQuoteRef(),
+    quoteRef,
     purchaserName,
     quoteDate: new Date().toISOString().split('T')[0],
     salesRep: 'HYNOVA AI Operations Desk',
@@ -294,9 +526,21 @@ router.post('/quote/create', async (req: Request, res: Response) => {
     status: 'Active Quote'
   };
 
-  serverSheetsStore.quotes.unshift(newQuote);
+  // Persist into durable SQLite storage
+  HynovaDatabase.saveQuote(tenantId, userId, {
+    quoteRef,
+    purchaserName,
+    projectScope,
+    hardwareSubtotalKES: hw,
+    labourKES: lb,
+    vatKES: vat,
+    grandTotalKES: grandTotal,
+    status: 'Active Quote',
+    rawJson: req.body
+  });
 
-  const { token } = extractAuth(req);
+  serverSheetsStore.quotes.unshift({ ...newQuote, tenantId } as any);
+
   await serverSheetsStore.serverAppendToGoogleSheet(
     'Quote_Estimator',
     [
@@ -313,16 +557,18 @@ router.post('/quote/create', async (req: Request, res: Response) => {
       newQuote.grandTotalKES,
       newQuote.status
     ],
-    token
+    auth.token
   );
 
   return res.json({
     success: true,
     message: `Quote ${newQuote.quoteRef} created in HYNOVA OPS.`,
-    quote: newQuote
+    quote: {
+      ...newQuote,
+      tenantId
+    }
   });
 });
-
 // 8. PRIVILEGED STAFF OPERATION: CREATE JOB (REQUIRES OPERATIONS / SALES / ADMIN)
 router.post('/job/create', async (req: Request, res: Response) => {
   const { role, token } = extractAuth(req);
@@ -597,7 +843,16 @@ router.post('/privileged/append-row', async (req: Request, res: Response) => {
 // ============================================================================
 
 // GET /api/technicians — Count and list actual records from Technicians worksheet
-router.get('/technicians', (_req: Request, res: Response) => {
+// GET /api/technicians — Count and list actual records from Technicians worksheet (Staff Protected)
+router.get('/technicians', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  const isPrivilegedStaff = ['SALES', 'DISPATCH', 'OPERATIONS', 'FINANCE', 'ADMIN', 'EXECUTIVE'].includes(auth.role) && auth.authenticated;
+  if (!isPrivilegedStaff) {
+    return res.status(403).json({
+      success: false,
+      error: `Access Denied: Role '${auth.role}' is not authorized to view internal technician records.`
+    });
+  }
   const techs = serverSheetsStore.getTechnicians();
   return res.json({
     success: true,
@@ -606,8 +861,16 @@ router.get('/technicians', (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/technicians/available — Count and list active & available technicians
-router.get('/technicians/available', (_req: Request, res: Response) => {
+// GET /api/technicians/available — Count and list active & available technicians (Staff Protected)
+router.get('/technicians/available', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  const isPrivilegedStaff = ['SALES', 'DISPATCH', 'OPERATIONS', 'FINANCE', 'ADMIN', 'EXECUTIVE'].includes(auth.role) && auth.authenticated;
+  if (!isPrivilegedStaff) {
+    return res.status(403).json({
+      success: false,
+      error: `Access Denied: Role '${auth.role}' is not authorized to view available technicians.`
+    });
+  }
   const availableTechs = serverSheetsStore.getAvailableTechnicians();
   return res.json({
     success: true,
@@ -616,8 +879,16 @@ router.get('/technicians/available', (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/technicians/by-county/:county — Filter actual technicians by county (never assumes county = technician)
+// GET /api/technicians/by-county/:county — Filter actual technicians by county (Staff Protected)
 router.get('/technicians/by-county/:county', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  const isPrivilegedStaff = ['SALES', 'DISPATCH', 'OPERATIONS', 'FINANCE', 'ADMIN', 'EXECUTIVE'].includes(auth.role) && auth.authenticated;
+  if (!isPrivilegedStaff) {
+    return res.status(403).json({
+      success: false,
+      error: `Access Denied: Role '${auth.role}' is not authorized to view technicians.`
+    });
+  }
   const { county } = req.params;
   const countyTechs = serverSheetsStore.getTechniciansByCounty(county);
   return res.json({
@@ -628,8 +899,16 @@ router.get('/technicians/by-county/:county', (req: Request, res: Response) => {
   });
 });
 
-// GET /api/technicians/by-skill/:skill — Filter actual technicians by skill
+// GET /api/technicians/by-skill/:skill — Filter actual technicians by skill (Staff Protected)
 router.get('/technicians/by-skill/:skill', (req: Request, res: Response) => {
+  const auth = extractAuth(req);
+  const isPrivilegedStaff = ['SALES', 'DISPATCH', 'OPERATIONS', 'FINANCE', 'ADMIN', 'EXECUTIVE'].includes(auth.role) && auth.authenticated;
+  if (!isPrivilegedStaff) {
+    return res.status(403).json({
+      success: false,
+      error: `Access Denied: Role '${auth.role}' is not authorized to view technicians.`
+    });
+  }
   const { skill } = req.params;
   const skillTechs = serverSheetsStore.getTechniciansBySkill(skill);
   return res.json({
@@ -639,7 +918,6 @@ router.get('/technicians/by-skill/:skill', (req: Request, res: Response) => {
     technicians: skillTechs
   });
 });
-
 // POST /api/technicians/create — Future technician additions by authorized Admin/Operations
 router.post('/technicians/create', async (req: Request, res: Response) => {
   const { role, token } = extractAuth(req);

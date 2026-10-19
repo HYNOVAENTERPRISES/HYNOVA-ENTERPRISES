@@ -28,12 +28,91 @@ function assert(condition: boolean, testName: string, details?: string) {
 async function runTestSuite() {
   console.log('=== RUNNING PRODUCTION READINESS TEST SUITE ===\n');
 
-  // 1. Budget Ceiling & VAT Arithmetic Tests across Multiple Scenarios
-  console.log('--- TEST 1: BUDGET CEILING & VAT ARITHMETIC ---');
-  const testBudgets = [20000, 50000, 100000, 250000, 500000];
-  const testCategories = ['AI CCTV & Security', 'Hybrid Solar Backup', 'Starlink & Wi-Fi 6', 'Biometric Access'];
+  // 1. Budget Validation Tests: Below KES 5,000, Exactly KES 5,000, and Above KES 5,000
+  console.log('--- TEST 1A: BUDGET REJECTION BELOW KES 5,000 ---');
+  const subMinimumBudgets = [500, 1000, 2500, 4999];
+  for (const b of subMinimumBudgets) {
+    let threwCorrectly = false;
+    let caughtMessage = '';
+    try {
+      HynovaAdvisorEngine.generateThreeTierRecommendation({
+        categoryText: 'AI CCTV & Security',
+        selectedBudgetKES: b,
+        location: 'Nairobi County',
+        propertyType: 'Residential Villa / Compound',
+      });
+    } catch (err: any) {
+      threwCorrectly = true;
+      caughtMessage = err.message || '';
+    }
+    assert(
+      threwCorrectly && caughtMessage.includes('5,000'),
+      `Reject Sub-Minimum Budget (KES ${b})`,
+      `Expected rejection with KES 5,000 minimum notice, got: ${caughtMessage}`
+    );
+  }
 
-  for (const b of testBudgets) {
+  // Quotation below KES 5,000 rejection
+  let quoteRejected = false;
+  try {
+    googleSheetsOps.addQuote({
+      purchaserName: 'Under Budget Test',
+      projectScope: 'Minor Cable Fix',
+      hardwareSubtotalKES: 1000,
+      labourKES: 1000,
+    });
+  } catch (err: any) {
+    quoteRejected = true;
+  }
+  assert(quoteRejected, 'Quotation Under KES 5,000 Rejected at Backend Layer');
+
+  console.log('\n--- TEST 1B: EXACTLY KES 5,000 BUDGET CEILING & ARITHMETIC ---');
+  const testCategories = ['AI CCTV & Security', 'Hybrid Solar Backup', 'Starlink & Wi-Fi 6', 'Biometric Access'];
+  for (const cat of testCategories) {
+    const rec5k = HynovaAdvisorEngine.generateThreeTierRecommendation({
+      categoryText: cat,
+      selectedBudgetKES: 5000,
+      location: 'Nairobi County',
+      propertyType: 'Residential Villa / Compound',
+      goalsText: 'Entry starter package'
+    });
+
+    const lowest = rec5k.lowestPriceTier;
+    const middle = rec5k.middlePriceTier;
+    const recommended = rec5k.hynovaRecommendedTier;
+
+    assert(
+      lowest.grandTotalInclVatKES <= 5000,
+      `Exact KES 5,000 Lowest Tier Ceiling (${cat})`,
+      `Lowest cost ${lowest.grandTotalInclVatKES} > 5000`
+    );
+    assert(
+      middle.grandTotalInclVatKES <= 5000,
+      `Exact KES 5,000 Middle Tier Ceiling (${cat})`,
+      `Middle cost ${middle.grandTotalInclVatKES} > 5000`
+    );
+    assert(
+      recommended.grandTotalInclVatKES <= 5000,
+      `Exact KES 5,000 Recommended Tier Ceiling (${cat})`,
+      `Recommended cost ${recommended.grandTotalInclVatKES} > 5000`
+    );
+    assert(
+      lowest.grandTotalInclVatKES <= middle.grandTotalInclVatKES &&
+      middle.grandTotalInclVatKES <= recommended.grandTotalInclVatKES,
+      `Exact KES 5,000 Tier Ordering Check (${cat})`,
+      `Expected ${lowest.grandTotalInclVatKES} <= ${middle.grandTotalInclVatKES} <= ${recommended.grandTotalInclVatKES}`
+    );
+    assert(
+      recommended.subtotalExclVatKES + recommended.vatKES === recommended.grandTotalInclVatKES,
+      `Exact KES 5,000 VAT Arithmetic (${cat})`,
+      `Subtotal ${recommended.subtotalExclVatKES} + VAT ${recommended.vatKES} !== GrandTotal ${recommended.grandTotalInclVatKES}`
+    );
+  }
+
+  console.log('\n--- TEST 1C: BUDGET CEILINGS & VAT FOR BUDGETS ABOVE KES 5,000 ---');
+  const testBudgetsAbove5k = [5001, 10000, 20000, 50000, 100000, 250000, 500000];
+
+  for (const b of testBudgetsAbove5k) {
     for (const cat of testCategories) {
       const rec = HynovaAdvisorEngine.generateThreeTierRecommendation({
         categoryText: cat,

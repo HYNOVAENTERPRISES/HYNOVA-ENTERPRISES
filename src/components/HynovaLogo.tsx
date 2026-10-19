@@ -19,53 +19,51 @@ export const HynovaLogo: React.FC<HynovaLogoProps> = ({
   inverted = false,
   onClick,
 }) => {
-  const markSizeClass = markClassName || (size === 'sm' ? 'w-7 h-7' : size === 'lg' ? 'w-11 h-11' : 'w-9 h-9');
+  const markSizeClass =
+    markClassName ||
+    (size === 'sm'
+      ? 'h-6 w-auto'
+      : size === 'lg'
+      ? 'h-11 w-auto'
+      : 'h-9 w-auto');
+
   // SVG Mark component representing the official HYNOVA monogram
+  // The 'H' is solid, balanced, and complete with dual-tone uprights and dynamic innovation loop
   const LogoMark = ({ customClass = markSizeClass }: { customClass?: string }) => (
     <svg
-      viewBox="120 200 750 360"
+      viewBox="140 205 740 350"
       className={`${customClass} shrink-0`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="HYNOVA Logo Mark"
     >
-      {/* Left slanted dark charcoal bar */}
+      {/* Left slanted solid charcoal bar (unbroken, pristine upright) */}
       <polygon
-        points="160,227 326,227 451,490 305,490"
+        points="160,227 310,227 435,490 285,490"
         fill={inverted ? '#FFFFFF' : '#231F20'}
       />
-
-      {/* Red stylized dynamic Hynova wing, stem, and infinity loop */}
-      <path
-        fillRule="evenodd"
+      {/* Right slanted solid crimson bar (unbroken, complete upright) */}
+      <polygon
+        points="425,227 575,227 700,490 550,490"
         fill="#C01E25"
+      />
+      {/* Solid crimson crossbar uniting both uprights seamlessly */}
+      <polygon
+        points="368,345 484,345 508,395 392,395"
+        fill="#C01E25"
+      />
+      {/* Dynamic HYNOVA innovation wing and limitless loop */}
+      <path
+        fill="#C01E25"
+        fillRule="evenodd"
         d="
-          M 418,227
-          L 584,227
-          L 556,285
-          C 544,310 535,335 528,362
-          C 560,363 605,365 655,372
-          C 745,385 830,420 845,465
-          C 858,505 815,532 755,535
-          C 660,540 575,505 520,430
-          L 508,490
-          L 370,490
-          L 415,395
-          L 252,395
-          L 242,400
-          L 212,400
-          L 225,392
-          L 200,392
-          L 138,368
-          L 248,365
-          L 426,365
-          L 458,295
-          Z
-          M 588,415
-          C 645,410 735,420 760,450
-          C 775,470 755,490 705,495
-          C 645,500 580,470 548,435
-          C 560,425 574,418 588,415
+          M 560,345
+          C 625,345 745,355 815,405
+          C 855,435 845,480 780,500
+          C 700,520 610,480 565,420
+          C 595,425 640,455 700,465
+          C 755,475 790,455 780,430
+          C 760,395 670,375 560,375
           Z
         "
       />
@@ -86,7 +84,7 @@ export const HynovaLogo: React.FC<HynovaLogoProps> = ({
         className={`flex flex-col items-center text-center select-none ${className}`}
         onClick={onClick}
       >
-        <LogoMark customClass="w-28 h-28 mb-3" />
+        <LogoMark customClass="h-24 w-auto mb-3" />
         <span className="font-extrabold text-xl tracking-wide text-[#C01E25]">
           HYNOVA ENTERPRISES
         </span>

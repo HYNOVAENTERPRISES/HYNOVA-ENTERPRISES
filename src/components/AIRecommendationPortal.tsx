@@ -11,6 +11,7 @@ import {
   Download, 
   Send, 
   CheckCircle2, 
+  AlertCircle,
   RefreshCw,
   Zap,
   Phone,
@@ -40,6 +41,7 @@ import { SiteSurveyModal } from './SiteSurveyModal';
 import { GoogleMapsLocationPicker } from './GoogleMapsLocationPicker';
 import { googleSheetsOps } from '../services/googleSheetsService';
 import { getAccessToken } from '../services/authService';
+import { getApiUrl } from '../services/apiConfig';
 
 interface AIRecommendationPortalProps {
   onNavigate: (view: AppView) => void;
@@ -55,6 +57,7 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
   onLeadCaptured,
 }) => {
   const [budgetKES, setBudgetKES] = useState<number>(100000);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
   const [county, setCounty] = useState<string>(selectedCounty || 'Nairobi County');
   const [propertyType, setPropertyType] = useState<string>('Residential Villa / Compound');
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([
@@ -136,6 +139,11 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (budgetKES < 5000) {
+      setBudgetError('The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+      return;
+    }
+    setBudgetError(null);
     setIsGenerating(true);
     setLeadSuccessMsg(false);
     setCreatedQuoteRef(null);
@@ -152,13 +160,17 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
         phone: clientPhone || undefined,
       };
 
-      const res = await fetch('/api/recommend', {
+      const res = await fetch(getApiUrl('/api/recommend'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
+      if (!res.ok || !data.success) {
+        setBudgetError(data.error || 'The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+        return;
+      }
       if (data.success && data.data) {
         const rec = data.data as AIRecommendationResult;
         setRecommendation(rec);
@@ -270,7 +282,7 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
         <header className="mb-8 sm:mb-10 text-center max-w-4xl mx-auto">
           <div className="inline-flex flex-wrap items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F0C9CB]/40 border border-[#DB7D81]/40 text-xs font-extrabold text-[#C01E25] mb-3">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span>Authoritative HYNOVA OPS Engine • 18 Google Sheets Worksheets</span>
+            <span>Integrated Operations Engine • Kenya Nationwide</span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1E1B1C] tracking-tight">
             AI Technology Solutions Advisor
@@ -360,9 +372,21 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
                       min="5000"
                       max="25000000"
                       step="1000"
-                      value={budgetKES}
-                      onChange={(e) => setBudgetKES(Math.max(5000, Number(e.target.value) || 5000))}
-                      className="w-28 text-right font-black text-[#C01E25] bg-white border border-[#DB7D81]/50 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-[#C01E25]/30 font-mono"
+                      value={budgetKES || ''}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setBudgetKES(val);
+                        if (val < 5000) {
+                          setBudgetError('The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+                        } else {
+                          setBudgetError(null);
+                        }
+                      }}
+                      className={`w-28 text-right font-black bg-white border rounded-lg px-2 py-1 text-sm outline-none font-mono ${
+                        budgetError
+                          ? 'text-red-600 border-red-500 focus:ring-2 focus:ring-red-500/30'
+                          : 'text-[#C01E25] border-[#DB7D81]/50 focus:ring-2 focus:ring-[#C01E25]/30'
+                      }`}
                     />
                   </div>
                 </div>
@@ -373,8 +397,12 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
                   min="5000"
                   max="500000"
                   step="2500"
-                  value={budgetKES}
-                  onChange={(e) => setBudgetKES(Number(e.target.value))}
+                  value={budgetKES < 5000 ? 5000 : budgetKES}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setBudgetKES(val);
+                    if (val >= 5000) setBudgetError(null);
+                  }}
                   className="w-full accent-[#C01E25] cursor-pointer"
                 />
 
@@ -390,7 +418,10 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
                     <button
                       key={p.label}
                       type="button"
-                      onClick={() => setBudgetKES(p.amount)}
+                      onClick={() => {
+                        setBudgetKES(p.amount);
+                        setBudgetError(null);
+                      }}
                       className={`py-1.5 px-1 rounded-xl text-center text-[10px] font-extrabold border transition-colors cursor-pointer ${
                         budgetKES === p.amount
                           ? 'bg-[#C01E25] text-white border-[#C01E25]'
@@ -403,10 +434,17 @@ export const AIRecommendationPortal: React.FC<AIRecommendationPortalProps> = ({
                   ))}
                 </div>
 
+                {budgetError && (
+                  <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-start gap-1.5 animate-in fade-in">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <span>{budgetError}</span>
+                  </div>
+                )}
+
                 <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-1.5">
                   <Info className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
                   <span>
-                    <strong>Strict Ceiling Guarantee:</strong> No generated tier will exceed KES {budgetKES.toLocaleString()}. Totals include 16% VAT.
+                    <strong>Strict Ceiling Guarantee:</strong> No generated tier will exceed KES {budgetKES < 5000 ? 5000 : budgetKES.toLocaleString()}. Totals include 16% VAT.
                   </span>
                 </div>
               </div>

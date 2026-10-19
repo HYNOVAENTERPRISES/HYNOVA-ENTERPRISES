@@ -173,7 +173,7 @@ export const TechnicianPortal: React.FC = () => {
                   No Active Technician Profile Assigned
                 </h2>
                 <p className="text-xs sm:text-sm text-[#5C4D50] mt-2 max-w-md mx-auto leading-relaxed">
-                  In accordance with the strict HYNOVA source-of-truth registry, there are currently 0 active technician records in the Technicians worksheet. Are you an EPRA or NCA certified engineer or installer? Submit your credentials to join our verified national network.
+                  In accordance with our strict operational registry, there are currently 0 active technician records registered. Are you an EPRA or NCA certified engineer or installer? Submit your credentials to join our verified national network.
                 </p>
               </div>
 
@@ -181,7 +181,7 @@ export const TechnicianPortal: React.FC = () => {
                 <div className="p-4 rounded-2xl bg-[#EEECEC]/40 border border-[#EEECEC]">
                   <span className="text-[10px] font-bold text-[#5C4D50] uppercase block">Total Technicians</span>
                   <span className="text-xl font-black text-[#1E1B1C]">0</span>
-                  <span className="text-[10px] text-[#8F7B7F] block">Spreadsheet Records</span>
+                  <span className="text-[10px] text-[#8F7B7F] block">Verified Records</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-[#EEECEC]/40 border border-[#EEECEC]">
                   <span className="text-[10px] font-bold text-[#5C4D50] uppercase block">Active / Available</span>

@@ -27,11 +27,14 @@
  * 18. Support
  */
 
+import { getApiUrl } from './apiConfig';
+
 export const SPREADSHEET_ID = '1-KKutYrmmc_SHTuaH5QYUUYdJXaSo4kJiibsskrBXzY';
 export const SPREADSHEET_NAME = 'HYNOVA OPS';
 export const GOOGLE_SHEETS_BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
 
 export interface ControlPanelConfig {
+  minProjectBudgetKES: number;
   standardCameraLabourRate: number;
   technicianLabourSplit: number; // e.g. 0.50 (50%)
   hynovaLabourSplit: number; // e.g. 0.50 (50%)
@@ -245,6 +248,7 @@ export interface SheetSupportTicket {
 
 // Initial Authoritative Cache seeded to exactly match HYNOVA OPS Google Sheet
 export const INITIAL_CONTROL_PANEL: ControlPanelConfig = {
+  minProjectBudgetKES: 5000,
   standardCameraLabourRate: 2500,
   technicianLabourSplit: 0.50,
   hynovaLabourSplit: 0.50,
@@ -838,7 +842,7 @@ class GoogleSheetsOpsStore {
 
     // Call backend API in background
     if (typeof window !== 'undefined') {
-      fetch('/api/technicians/create', {
+      fetch(getApiUrl('/api/technicians/create'), {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -905,7 +909,7 @@ class GoogleSheetsOpsStore {
 
     // Call backend API in background for verified server-side persistence
     if (typeof window !== 'undefined') {
-      fetch('/api/sheets/customer/register', {
+      fetch(getApiUrl('/api/sheets/customer/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCustomer)
@@ -941,7 +945,7 @@ class GoogleSheetsOpsStore {
 
     // Call backend API in background
     if (typeof window !== 'undefined') {
-      fetch('/api/sheets/site-survey/book', {
+      fetch(getApiUrl('/api/sheets/site-survey/book'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSurvey)
@@ -963,6 +967,10 @@ class GoogleSheetsOpsStore {
     const vat = Math.round(subtotal * this.controlPanel.standardVatRate);
     const grandTotal = subtotal + vat;
 
+    if (grandTotal < 5000) {
+      throw new Error('The minimum permitted project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+    }
+
     const newQuote: SheetQuote = {
       quoteRef: this.getNextQuoteRef(),
       purchaserName: data.purchaserName,
@@ -981,9 +989,12 @@ class GoogleSheetsOpsStore {
 
     // Call backend API in background
     if (typeof window !== 'undefined') {
-      fetch('/api/sheets/quote/create', {
+      const sessionToken = sessionStorage.getItem('hynova_session_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+      fetch(getApiUrl('/api/sheets/quote/create'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(newQuote)
       }).catch(err => console.warn('Background quote sync:', err));
     }
@@ -1026,7 +1037,7 @@ class GoogleSheetsOpsStore {
     this.jobs.unshift(newJob);
 
     // Call backend API in background
-    fetch('/api/sheets/job/create', {
+    fetch(getApiUrl('/api/sheets/job/create'), {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -1045,7 +1056,7 @@ class GoogleSheetsOpsStore {
       this.syncError = null;
 
       // 1. Sync through backend API endpoint
-      const backendSyncRes = await fetch('/api/sheets/sync', {
+      const backendSyncRes = await fetch(getApiUrl('/api/sheets/sync'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1062,7 +1073,7 @@ class GoogleSheetsOpsStore {
       }
 
       // 2. Refresh active worksheets from backend
-      const worksheetsRes = await fetch('/api/sheets/worksheets', {
+      const worksheetsRes = await fetch(getApiUrl('/api/sheets/worksheets'), {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'x-google-token': accessToken,
@@ -1116,7 +1127,7 @@ class GoogleSheetsOpsStore {
     accessToken: string
   ): Promise<boolean> {
     try {
-      const res = await fetch('/api/sheets/privileged/append-row', {
+      const res = await fetch(getApiUrl('/api/sheets/privileged/append-row'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

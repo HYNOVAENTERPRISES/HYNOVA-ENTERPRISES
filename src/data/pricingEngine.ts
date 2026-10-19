@@ -419,8 +419,12 @@ export class PricingEngineService {
     };
   } {
     const { category, propertyType, county } = params;
-    // Enforce minimum supported budget of KES 5,000
-    const customerBudgetKES = Math.max(5000, Number(params.customerBudgetKES) || 5000);
+    // Enforce minimum permitted project budget of KES 5,000
+    const rawBudget = Number(params.customerBudgetKES);
+    if (isNaN(rawBudget) || rawBudget < 5000) {
+      throw new Error('The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+    }
+    const customerBudgetKES = rawBudget;
     const catLower = (category || '').toLowerCase();
 
     // Starter Tier (KES 5,000 – 20,000)

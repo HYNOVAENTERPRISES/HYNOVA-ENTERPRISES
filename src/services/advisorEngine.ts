@@ -1501,7 +1501,11 @@ export class HynovaAdvisorEngine {
     goalsText?: string;
   }): AdvisorRecommendationResult {
     const { categoryText, location, propertyType, goalsText } = params;
-    const budget = Math.max(5000, Number(params.selectedBudgetKES) || 5000);
+    const rawBudget = Number(params.selectedBudgetKES);
+    if (isNaN(rawBudget) || rawBudget < 5000) {
+      throw new Error('The minimum permitted AI project budget is KES 5,000. Please enter a project budget of at least KES 5,000.');
+    }
+    const budget = rawBudget;
     const cat = `${categoryText} ${goalsText || ''}`.toLowerCase();
 
     const isSolarOnly = (cat.includes('solar') || cat.includes('power') || cat.includes('inverter') || cat.includes('battery')) &&
@@ -1764,7 +1768,7 @@ export class HynovaAdvisorEngine {
       middlePriceTier: middleTier,
       hynovaRecommendedTier: recommendedTier,
       technicianStatus: 'Awaiting technician assignment',
-      pricingIntegrityNote: 'All equipment SKUs and labor rates are retrieved directly from our authoritative Google Spreadsheet catalog. Your selected budget is enforced as a strict ceiling. No fake products, estimated rates, or simulated technicians are used.',
+      pricingIntegrityNote: 'All equipment SKUs and labor rates are retrieved directly from our authoritative catalog. Your selected budget is enforced as a strict ceiling. No fake products, estimated rates, or simulated technicians are used.',
     };
   }
 }
